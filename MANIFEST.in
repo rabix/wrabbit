@@ -1,0 +1,1 @@
+include wrabbit/parser/js_templates/*.js
