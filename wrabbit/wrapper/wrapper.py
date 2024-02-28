@@ -10,6 +10,8 @@ from wrabbit.specification.requirements import (
 
 import logging
 
+from wrabbit.wrapper.utils import recursive_serialize
+
 
 class SbWrapper:
     inputs = dict()
@@ -234,4 +236,4 @@ class SbWrapper:
         if self.revision_note:
             wrapper['sbg:revisionNotes'] = self.revision_note
 
-        return wrapper
+        return recursive_serialize(wrapper)
