@@ -1,6 +1,7 @@
 import os
 import logging
 import re
+from typing import Union
 
 from wrabbit.specification.node_types import (
     CompositeType,
@@ -36,18 +37,7 @@ def nf_to_sb_input_mapper(port_id, port_data, category=None, required=False):
     Convert a single input from Nextflow schema to SB schema
     """
     sb_input = InputPort(id_=port_id)
-
-    enum_symbols = port_data.get('enum', [])
-
-    if enum_symbols:
-        sb_input.type_ = EnumType(
-            name=port_id,
-            symbols=enum_symbols,
-        )
-    else:
-        type_ = port_data.get('type', 'string')
-        format_ = port_data.get('format', '')
-        sb_input.type_ = type_mapper(type_, format_)
+    sb_input.type_ = type_mapper(port_data, port_id)
 
     sb_input.binding = Binding(prefix=f'--{port_id}')
 
@@ -70,7 +60,24 @@ def nf_to_sb_input_mapper(port_id, port_data, category=None, required=False):
     return sb_input
 
 
-def type_mapper(type_, format_):
+def type_mapper(port_data: Union[str, dict], name=None):
+    type_ = ""
+    format_ = ""
+
+    if isinstance(port_data, str):
+        type_ = port_data
+
+    if isinstance(port_data, dict):
+        type_ = port_data.get('type', 'string')
+        format_ = port_data.get('format', '')
+        enum_symbols = port_data.get('enum', [])
+
+        if enum_symbols:
+            return EnumType(
+                name=name,
+                symbols=enum_symbols,
+            )
+
     if isinstance(type_, str):
         if type_ == 'string' and 'path' in format_:
             if format_ == 'file-path':
@@ -87,15 +94,20 @@ def type_mapper(type_, format_):
             return FloatType()
         if type_ == 'boolean':
             return BooleanType()
+        if type_ == 'array':
+            item_data = port_data.get('items', {})
+            return ArrayType(items=type_mapper(item_data))
         if type_ == 'object':
-            # this should be a record type (dictionary)
-            # it is provided as '{"key1": "value1", "key2": "value2"}'
+            # These are maps
+            # They can only be provided through the -params-file
+            # Skip these
             return StringType()
         return StringType()
-    elif isinstance(type_, list):
+
+    if isinstance(type_, list):
         temp_type_list = CompositeType()
         for m in type_:
-            temp_type_list.extend(type_mapper(m, format_))
+            temp_type_list.extend(type_mapper(m))
         return temp_type_list
 
 
@@ -173,7 +185,7 @@ def get_entrypoint(path):
             possible_paths.append(file)
 
     if len(possible_paths) > 1:
-        raise Exception(
+        raise FileExistsError(
             'Detected more than 1 nextflow file in the root of the '
             'workflow-path. Please use `--entrypoint` to specify which script '
             'you want to use as the workflow entrypoint')
@@ -229,26 +241,61 @@ def get_docs_file(path):
 
 
 def get_executor_version(string):
+    # from description
     result = re.findall(
-        r"\[Nextflow]\([^(]+(%E2%89%A5|%E2%89%A4|=|>|<)(\d{2}\.\d+\.\d+)[^)]+\)",  # noqa
+        r"\[Nextflow]\([^(]+(%E2%89%A5|%E2%89%A4|=|>|<)(\d{2}\.\d+\.\d+)[^)]+\)",
         string
     )
+
     if result:
         sign, version = result.pop(0)
-        if sign == "%E2%89%A5":
+        if sign in ["%E2%89%A5", ">=", "!>="]:
             sign = ">="
-        elif sign == "%E2%89%A4":
+        elif sign in ["!>", ">"]:
+            sign = ">"
+        elif sign in ["%E2%89%A4", "<=", "!<="]:
             sign = "<="
+        elif sign in ["!<", "<"]:
+            sign = "<"
         elif not sign:
             sign = "="
-
-        logger.info(
-            f"Identified nextflow "
-            f"executor version requirement {sign} {version}"
+        print(
+            f"Identified nextflow executor version requirement "
+            f"{sign} {version}"
         )
         return sign, version
-    else:
-        return None, None
+
+    result = re.findall(
+        r"((?:[!><=]+|))([0-9.]+)((?:\+|))",
+        string
+    )
+
+    if result:
+        result = result[0]
+
+        if result[2] == "+":
+            sign = ">="
+        else:
+            sign = result[0]
+
+        version = result[1]
+        if sign in ["%E2%89%A5", ">=", "!>="]:
+            sign = ">="
+        elif sign in ["!>", ">"]:
+            sign = ">"
+        elif sign in ["%E2%89%A4", "<=", "!<="]:
+            sign = "<="
+        elif sign in ["!<", "<"]:
+            sign = "<"
+        elif not sign:
+            sign = "="
+        print(
+            f"Identified nextflow executor version requirement "
+            f"{sign} {version}"
+        )
+        return sign, version
+
+    return None, None
 
 
 def get_sample_sheet_schema(path):
@@ -291,6 +338,23 @@ def find_config_section(file_path: str, section: str) -> str:
                 found_section = True
 
     return section_text
+
+
+def parse_manifest(file_path: str) -> dict:
+    manifest_text = find_config_section(file_path, 'manifest')
+
+    key_val_pattern = re.compile(
+        r'([a-zA-Z._]+)(?:\s+|)=(?:\s+|)(.+)'
+    )
+
+    manifest = dict(re.findall(key_val_pattern, manifest_text))
+    for key, value in manifest.items():
+        if value.startswith("'") and value.endswith("'"):
+            manifest[key] = value.strip("'")
+        elif value.startswith('"') and value.endswith('"'):
+            manifest[key] = value.strip('"')
+
+    return manifest
 
 
 def parse_config_file(file_path: str) -> dict:

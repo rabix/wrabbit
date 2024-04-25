@@ -8,19 +8,24 @@ from wrabbit.parser.utils import (
     get_config_files,
     get_nf_schema,
     parse_config_file,
+    parse_manifest,
+    get_executor_version,
     create_profile_enum,
     nf_to_sb_input_mapper,
     get_tower_yml,
     get_dict_depth,
+    get_entrypoint,
     get_docs_file,
 )
 
 from wrabbit.parser.constants import (
     sample_sheet,
+    ExecMode,
     SB_SCHEMA_DEFAULT_NAME,
     EXTENSIONS,
     NF_TO_CWL_CATEGORY_MAP,
     GENERIC_FILE_ARRAY_INPUT,
+    NF_PARAMS_FILE_INPUT,
     AUX_FILES_REQUIREMENT,
     INLINE_JS_REQUIREMENT,
     GENERIC_NF_OUTPUT_DIRECTORY,
@@ -54,8 +59,12 @@ from wrabbit.wrapper.wrapper import SbWrapper
 
 
 class NextflowParser:
-    def __init__(self, workflow_path: str, sb_doc: Optional[str] = None):
-        self.sb_wrapper = SbWrapper()
+    def __init__(
+            self, workflow_path: str,
+            sb_doc: Optional[str] = None,
+            label: Optional[str] = None
+    ):
+        self.sb_wrapper = SbWrapper(label)
         self.workflow_path = workflow_path
 
         # Locate nextflow files in the package if possible
@@ -64,6 +73,11 @@ class NextflowParser:
         self.readme_path = get_docs_file(self.workflow_path)
 
         self.sb_doc = sb_doc
+
+        # app contents
+        self.entrypoint = None
+        self.executor_version = None
+        self.sb_package_id = None
 
     def generate_sb_inputs(self):
         """
@@ -140,6 +154,7 @@ class NextflowParser:
 
         # Add the generic file array input - auxiliary files
         self.sb_wrapper.safe_add_input(GENERIC_FILE_ARRAY_INPUT)
+        self.sb_wrapper.safe_add_input(NF_PARAMS_FILE_INPUT)
         self.sb_wrapper.add_requirement(AUX_FILES_REQUIREMENT)
         self.sb_wrapper.add_requirement(INLINE_JS_REQUIREMENT)
 
@@ -159,11 +174,52 @@ class NextflowParser:
                  'reports' in self.sb_wrapper.outputs):
             self.sb_wrapper.safe_add_output(GENERIC_NF_OUTPUT_DIRECTORY)
 
+    def generate_app_data(self):
+
+        for file in self.nf_config_files:
+            manifest_data = parse_manifest(file)
+
+            self.entrypoint = self.entrypoint or manifest_data.get(
+                'mainScript', None) or get_entrypoint(self.workflow_path)
+
+            executor_version = manifest_data.get('nextflowVersion', None)
+            if executor_version:
+                executor_version = get_executor_version(executor_version)[-1]
+            self.executor_version = self.executor_version or executor_version
+
+            tk_author = manifest_data.get('author', None)
+            if not self.sb_wrapper.toolkit_author:
+                self.sb_wrapper.add_toolkit_author(tk_author)
+
+            home_page = manifest_data.get('homePage', None)
+            if home_page:
+                pl = {
+                    'id': home_page,
+                    'label': "Home Page",
+                }
+                self.sb_wrapper.add_link(pl)
+
+            if manifest_data:
+                # Stop searching if manifest is found
+                break
+
+        self.executor_version = self.executor_version or \
+                                get_executor_version(self.sb_doc)
+
+        # step2: add links
+
+        links = []  # sbg:links
+        # {
+        #     "id": "https://github.com/alexdobin/STAR",
+        #     "label": "STAR"
+        # },
+        # manifest.homePage
+
     def generate_sb_app(
             self, sb_entrypoint='main.nf',
             executor_version: Optional[str] = None,
             sb_package_id: Optional[str] = None,
-            execution_mode: Optional[Union[str, NextflowExecutionMode]] = None,
+            execution_mode: Optional[Union[str, ExecMode]] = None,
             sample_sheet_schema: Optional[str] = None,
     ):
         """
@@ -176,14 +232,15 @@ class NextflowParser:
 
         self.generate_sb_inputs()
         self.generate_sb_outputs()
+        self.generate_app_data()
 
         if sample_sheet_schema:
             self.parse_sample_sheet_schema(open(sample_sheet_schema))
 
         self.sb_wrapper.set_app_content(
-            code_package=sb_package_id,
-            entrypoint=sb_entrypoint,
-            executor_version=executor_version,
+            code_package=sb_package_id or self.sb_package_id,
+            entrypoint=sb_entrypoint or self.entrypoint,
+            executor_version=executor_version or self.executor_version,
         )
 
         if execution_mode:
@@ -203,17 +260,17 @@ class NextflowParser:
         sample_sheet_input: input_sample_sheet  # taken from app wrapper
         sample_sheet_name: samplesheet.csv
         header:
-          - SampleID
-          - Fastq1
-          - Fastq2
+          - sample_id
+          - fastq1
+          - fastq2
         rows:
           - sample_id
           - path
           - path
         defaults:
-          - NA
-          - NA
-          - NA
+          - ""
+          - ""
+          - ""
         group_by: sample_id
         format_: csv
 
@@ -435,6 +492,7 @@ class NextflowParser:
         """
         Dump SB wrapper for nextflow workflow to a file
         """
+        # self.generate_sb_app()
         print('Writing sb nextflow schema file...')
         basename = SB_SCHEMA_DEFAULT_NAME
         counter = 0

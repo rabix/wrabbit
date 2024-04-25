@@ -214,10 +214,10 @@ def convert_to_type(type_: Union[str, dict, list, NodeType]) -> NodeType:
             f"Unable to map type {type_} to a SbNodeType"
         )
 
-    if is_optional:
-        of_type.to_optional()
-
     if is_array:
         of_type = ArrayType(items=of_type)
+
+    if is_optional:
+        of_type.to_optional()
 
     return of_type

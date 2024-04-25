@@ -2,11 +2,8 @@ from enum import Enum
 from wrabbit.parser import read_js_template
 
 # ############################## Generic Bits ############################### #
-PACKAGE_SIZE_LIMIT = 100 * 1024 * 1024  # 100 MB
-REMOVE_INPUT_KEY = "REMOVE_THIS_KEY"
-
-
 # keep track of what extensions are applicable for processing
+
 class EXTENSIONS:
     yaml = 'yaml'
     yml = 'yml'
@@ -39,6 +36,20 @@ GENERIC_FILE_ARRAY_INPUT = {
            'required for workflow execution.'
 }
 
+NF_PARAMS_FILE_INPUT = {
+    "id": 'params_file',
+    "type": [
+        'null',
+        'File'
+    ],
+    "label": 'Params files',
+    "inputBinding": {
+        "prefix": '-params-file'
+    },
+    "doc": 'Provide parameters through a JSON format input file.',
+    "sbg:fileTypes": "JSON"
+}
+
 SAMPLE_SHEET_FILE_ARRAY_INPUT = {
     "id": "file_input",
     "type": [
@@ -51,8 +62,8 @@ SAMPLE_SHEET_FILE_ARRAY_INPUT = {
     "label": "Input files",
     "doc": "List of files that will be used to autogenerate the sample sheet "
            "that is required for workflow execution."
-
 }
+
 GENERIC_NF_OUTPUT_DIRECTORY = {
     "id": "nf_workdir",
     "type": [
@@ -63,7 +74,7 @@ GENERIC_NF_OUTPUT_DIRECTORY = {
     "doc": "This is a template output. "
            "Please change glob to directories specified in "
            "publishDir in the workflow.",
-    "binding": {
+    "outputBinding": {
         'glob': "work"
     }
 }
@@ -77,7 +88,7 @@ GENERIC_WDL_OUTPUT_DIRECTORY = {
     "doc": "This is a template output. "
            "Please change glob to directories specified in "
            "publishDir in the workflow.",
-    "binding": {
+    "outputBinding": {
         'glob': "*.txt"
     }
 }

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 
 from wrabbit.specification.port import (
     InputPort, OutputPort
@@ -7,6 +7,10 @@ from wrabbit.specification.requirements import (
     Requirement,
     convert_to_requirement
 )
+from wrabbit.specification.sbg import (
+    Link,
+    convert_to_link
+)
 
 import logging
 
@@ -14,6 +18,7 @@ from wrabbit.wrapper.utils import recursive_serialize
 
 
 class SbWrapper:
+    label = None
     inputs = dict()
     outputs = dict()
     app_content = dict()
@@ -24,9 +29,13 @@ class SbWrapper:
     hints = None
     doc = None
     revision_note = None
+    links = None
+    toolkit_author = None
+    wrapper_author = None
+    licence = None
 
-    def __init__(self):
-        pass
+    def __init__(self, label: Optional[str]=None):
+        self.label = label
 
     def get_input(self, id_):
         if id_ not in self.inputs:
@@ -162,7 +171,30 @@ class SbWrapper:
     def add_revision_note(self, note):
         self.revision_note = note
 
+    def add_link(self, link: Union[Link, dict]):
+        link = convert_to_link(link)
+
+        if not self.links:
+            self.links = dict()
+
+        if link in self.links:
+            logging.warning(f'Link with id <{link}> already exists. '
+                            f'Skipping...')
+
+        self.links[link.id_] = link
+
+    def add_toolkit_author(self, author):
+        self.toolkit_author = author
+
+    def add_wrapper_author(self, author):
+        self.wrapper_author = author
+
+    def add_licence(self, licence):
+        self.licence = licence
+
     def load(self, schema):
+        self.label = schema.get('label', None)
+
         s_inputs = schema.get('inputs', [])
         for input_ in s_inputs:
             self.add_input(input_)
@@ -193,12 +225,32 @@ class SbWrapper:
         if s_doc:
             self.add_docs(s_doc)
 
+        s_tk_author = schema.get('sbg:toolAuthor', None)
+        if s_tk_author:
+            self.add_toolkit_author(s_tk_author)
+
+        s_w_author = schema.get('sbg:wrapperAuthor', None)
+        if s_w_author:
+            self.add_wrapper_author(s_w_author)
+
+        s_links = schema.get('sbg:links', None)
+        if s_links:
+            for link in s_links:
+                self.add_link(link)
+
+        s_licence = schema.get('sbg:license', None)
+        if s_licence:
+            self.add_licence(s_licence)
+
         s_revision_note = schema.get('sbg:revisionNote', None)
         if s_revision_note:
             self.add_revision_note(s_revision_note)
 
     def dump(self):
         wrapper = dict()
+
+        if self.label:
+            wrapper['label'] = self.label
 
         if self.app_content:
             wrapper['app_content'] = self.app_content
@@ -232,6 +284,18 @@ class SbWrapper:
 
         if self.hints:
             wrapper['hints'] = self.hints
+
+        if self.toolkit_author:
+            wrapper['sbg:toolAuthor'] = self.toolkit_author
+
+        if self.wrapper_author:
+            wrapper['sbg:wrapperAuthor'] = self.wrapper_author
+
+        if self.links:
+            wrapper['sbg:links'] = [v for k, v in self.links.items()]
+
+        if self.licence:
+            wrapper['sbg:license'] = self.licence
 
         if self.revision_note:
             wrapper['sbg:revisionNotes'] = self.revision_note

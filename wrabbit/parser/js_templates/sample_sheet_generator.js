@@ -8,8 +8,11 @@ ${{
         return 0;
     }}
 
-    var input_source = [].concat(inputs.{input_source}).sort(compareFiles);
-    if (!input_source.length == 0){{
+    var input_source = [];
+    if ({input_source}){
+        input_source = [].concat({input_source}).sort(compareFiles);
+    };
+    if (input_source.length == 0){{
         // Return empty file if no input files are given.
         // Ensures that sample sheet is generated only if there are files to
         // either:
@@ -18,7 +21,7 @@ ${{
         return "";
     }};
 
-    var sample_sheet_input = inputs.{sample_sheet_input};
+    var sample_sheet_input = {sample_sheet_input};
 
     var sample_sheet = [];
 
@@ -26,15 +29,16 @@ ${{
         // If the sample sheet file is given, map inputs to the contents
         var contents = sample_sheet_input.contents.split("\n");
         var format_ = sample_sheet_input.nameext.slice(1);
-        
+
         var split_char = "";
 
-        switch (format_) {{
-            case 'csv':
-                split_char = ",";
-            case 'tsv':
-                split_char = "\t";
-        }};
+        if (format_ == 'csv'){{
+            split_char = ',';
+        }}
+
+        if (format_ == 'tsv'){{
+            split_char = '\t';
+        }}
 
         for (var i=0; i < input_source.length; i++){{
             var file = input_source[i];
@@ -53,18 +57,20 @@ ${{
         sample_sheet = contents;
     }} else {{
         // If the samples are given, create the sample sheet from input data
-        var format_ = {format_};
+        var format_ = "{format_}";
         var header = {header};
         var row = {rows};
         var defaults = {defaults};
         var group_by = {group_by};
 
         var split_char = "";
-        switch (format_) {{
-            case 'csv':
-                split_char = ",";
-            case 'tsv':
-                split_char = "\t";
+
+        if (format_ == 'csv'){{
+            split_char = ',';
+        }}
+
+        if (format_ == 'tsv'){{
+            split_char = '\t';
         }}
 
         if (header){{
@@ -72,10 +78,10 @@ ${{
         }};
         var groups = {{}};
 
-        for (var i = 0; i < input_source.length; i ++){{
+        for (var i = 0; i < input_source.length; i++){{
             var file = input_source[i];
             var group_criteria = [];
-            for (var j = 0; j < group_by.length; j ++){{
+            for (var j = 0; j < group_by.length; j++){{
                 group_criteria.push(eval(group_by[j]));
             }}
             try {{
@@ -91,7 +97,7 @@ ${{
             }}
         }};
 
-        for (k in groups){{
+        for (var k in groups){{
             var row_data = [];
             var files = groups[k];
 
@@ -107,7 +113,7 @@ ${{
                 }}
             }});
 
-            for (var j = 0; j < row.length; j ++){{
+            for (var j = 0; j < row.length; j++){{
                 var d = "";
                 try {{
                     var d = eval(row[j]);

@@ -34,14 +34,16 @@ class Port:
         self.binding = binding or None
         if self.binding:
             self.binding = convert_to_binding(binding)
-        self._custom_properties = kwargs or dict()
+        self._custom_properties = dict()
+        for key, value in kwargs.items():
+            self.set_property(key, value)
 
     def set_property(self, key: str, value: Any):
         if key in ('id', 'id_'):
             self.id_ = value
         elif key in ('type', 'type_'):
             self.type_ = convert_to_type(value)
-        elif key == 'binding':
+        elif key in ('binding', f'{self._port_type}Binding'):
             self.binding = convert_to_binding(value)
         elif key == 'doc':
             self.doc = value
@@ -68,6 +70,8 @@ class Port:
             temp['type'] = dict_.pop('type_').serialize()
 
         for key, value in dict_.items():
+            if not value:
+                continue
             if key in skip_keys:
                 continue
 
@@ -77,6 +81,8 @@ class Port:
                 temp[key] = value
 
         for key, value in sorted(self._custom_properties.items()):
+            if not value:
+                continue
             if key in skip_keys:
                 continue
 
