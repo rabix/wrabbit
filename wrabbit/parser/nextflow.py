@@ -35,7 +35,7 @@ from wrabbit.parser.constants import (
     SKIP_NEXTFLOW_TOWER_KEYS,
 )
 
-from wrabbit.specification.node_types import (
+from wrabbit.specification.node import (
     RecordType,
     FileType,
     DirectoryType,
@@ -62,7 +62,10 @@ class NextflowParser:
     def __init__(
             self, workflow_path: str,
             sb_doc: Optional[str] = None,
-            label: Optional[str] = None
+            label: Optional[str] = None,
+            entrypoint: Optional[str] = None,
+            executor_version: Optional[str] = None,
+            sb_package_id: Optional[str] = None,
     ):
         self.sb_wrapper = SbWrapper(label)
         self.workflow_path = workflow_path
@@ -75,9 +78,9 @@ class NextflowParser:
         self.sb_doc = sb_doc
 
         # app contents
-        self.entrypoint = None
-        self.executor_version = None
-        self.sb_package_id = None
+        self.entrypoint = entrypoint
+        self.executor_version = executor_version
+        self.sb_package_id = sb_package_id
 
     def generate_sb_inputs(self):
         """
@@ -139,7 +142,8 @@ class NextflowParser:
                 if 'title' in definition:
                     input_category = category['sbg:title']
 
-                for port_id, port_data in definition['properties'].items():
+                for port_id, port_data in definition.get(
+                        'properties', {}).items():
                     req = False
                     # if port_id in definition.get('required', []) and \
                     #         port_id not in optional_inputs:

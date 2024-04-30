@@ -1,5 +1,5 @@
 import yaml
-from wrabbit.specification.node_types import ( # noqa
+from wrabbit.specification.node import ( # noqa
     NodeType,
     EnumType,
     ArrayType,
@@ -11,13 +11,13 @@ from wrabbit.specification.node_types import ( # noqa
     BooleanType,
     RecordType,
     CompositeType,
+    InputPort,
+    OutputPort,
+    InputField,
+    OutputField,
 )
 from wrabbit.specification.requirements import (
     Requirement
-)
-from wrabbit.specification.port import (
-    InputPort,
-    OutputPort,
 )
 from wrabbit.specification.binding import (
     Binding,
@@ -25,6 +25,9 @@ from wrabbit.specification.binding import (
 from wrabbit.specification.hints import (
     Hint,
     NextflowExecutionMode,
+)
+from wrabbit.specification.sbg import (
+    Link
 )
 
 
@@ -56,7 +59,12 @@ yaml.add_representer(
 yaml.add_representer(InputPort, represent_serializable_object)
 yaml.add_representer(OutputPort, represent_serializable_object)
 
+yaml.add_representer(InputField, represent_serializable_object)
+yaml.add_representer(OutputField, represent_serializable_object)
+
 yaml.add_representer(Binding, represent_serializable_object)
 
 yaml.add_representer(Hint, represent_serializable_object)
 yaml.add_representer(NextflowExecutionMode, represent_serializable_object)
+
+yaml.add_representer(Link, represent_serializable_object)

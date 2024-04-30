@@ -3,7 +3,7 @@ import logging
 import re
 from typing import Union
 
-from wrabbit.specification.node_types import (
+from wrabbit.specification.node import (
     CompositeType,
     EnumType,
     ArrayType,
@@ -13,6 +13,8 @@ from wrabbit.specification.node_types import (
     IntegerType,
     FloatType,
     BooleanType,
+    InputPort,
+    Binding,
 )
 
 from wrabbit.parser.constants import (
@@ -21,11 +23,6 @@ from wrabbit.parser.constants import (
     SB_SAMPLES_SCHEMA_DEFAULT_NAME,
     NF_SCHEMA_DEFAULT_NAME,
     README_DEFAULT_NAME,
-)
-
-from wrabbit.specification.port import (
-    InputPort,
-    Binding,
 )
 
 logger = logging.getLogger(__name__)
