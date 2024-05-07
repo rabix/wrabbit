@@ -20,7 +20,7 @@ class Link:
         return temp
 
     @staticmethod
-    def convert_to_link(link):
+    def deserialize(link):
         if isinstance(link, Link):
             return link
         l = copy.deepcopy(link)

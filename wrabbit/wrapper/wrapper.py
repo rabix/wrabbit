@@ -2,15 +2,12 @@ from typing import Union, Optional
 
 from wrabbit.specification.node import (
     InputPort, OutputPort,
-    convert_to_port
 )
 from wrabbit.specification.requirements import (
     Requirement,
-    convert_to_requirement
 )
 from wrabbit.specification.sbg import (
     Link,
-    convert_to_link
 )
 
 import logging
@@ -46,7 +43,7 @@ class SbWrapper:
         return self.inputs[id_]
 
     def add_input(self, inp: Union[dict, InputPort]):
-        inp = convert_to_port(inp)
+        inp = InputPort.deserialize(inp)
 
         if inp.id_ in self.inputs:
             logging.warning(f'Input with id <{inp.id_}> already exists. '
@@ -55,7 +52,7 @@ class SbWrapper:
         self.inputs[inp.id_] = inp
 
     def safe_add_input(self, inp: Union[dict, InputPort]):
-        inp = convert_to_port(inp)
+        inp = InputPort.deserialize(inp)
 
         temp_id = inp.id_
         i = 0
@@ -88,7 +85,7 @@ class SbWrapper:
         return self.outputs[id_]
 
     def add_output(self, out: Union[dict, OutputPort]):
-        out = convert_to_port(out)
+        out = OutputPort.deserialize(out)
 
         if out.id_ in self.outputs:
             logging.warning(f'Output with id <{out.id_}> already exists. '
@@ -97,7 +94,7 @@ class SbWrapper:
         self.outputs[out.id_] = out
 
     def safe_add_output(self, out: Union[dict, OutputPort]):
-        out = convert_to_port(out)
+        out = OutputPort.deserialize(out)
 
         temp_id = out.id_
         i = 0
@@ -123,7 +120,7 @@ class SbWrapper:
             self.outputs.pop(id_)
 
     def add_requirement(self, requirement: [dict, Requirement]):
-        requirement = convert_to_requirement(requirement)
+        requirement = Requirement.deserialize(requirement)
 
         if not self.requirements:
             self.requirements = list()
@@ -169,7 +166,7 @@ class SbWrapper:
         self.revision_note = note
 
     def add_link(self, link: Union[Link, dict]):
-        link = convert_to_link(link)
+        link = Link.deserialize(link)
 
         if not self.links:
             self.links = dict()
