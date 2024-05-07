@@ -8,7 +8,6 @@ import copy
 
 from wrabbit.specification.binding import (
     Binding,
-    convert_to_binding,
 )
 
 
@@ -122,7 +121,7 @@ class RecordType(NodeType):
     type_ = "record"
 
     def __init__(self, fields: list, name: str, **kwargs):
-        self.fields = [convert_to_field(f) for f in fields]
+        self.fields = [Field.deserialize(f) for f in fields]
         self.name = name
         super().__init__(**kwargs)
 
@@ -257,7 +256,7 @@ class BasePort:
 
         self.binding = binding or None
         if self.binding:
-            self.binding = convert_to_binding(binding)
+            self.binding = Binding.deserialize(binding)
         self._custom_properties = dict()
         for key, value in kwargs.items():
             self.set_property(key, value)
@@ -266,7 +265,7 @@ class BasePort:
         if key in ('type', 'type_'):
             self.type_ = convert_to_type(value)
         elif key in ('binding', f'{self._port_type}Binding'):
-            self.binding = convert_to_binding(value)
+            self.binding = Binding.deserialize(value)
         elif key == 'doc':
             self.doc = value
         elif key == 'label':
@@ -331,6 +330,29 @@ class Port(BasePort):
         else:
             super().set_property(key, value)
 
+    @staticmethod
+    def deserialize(port):
+        if isinstance(port, Port):
+            return port
+
+        binding = port.get('inputBinding', None)
+        if binding:
+            return InputPort(
+                binding=binding,
+                **port
+            )
+
+        binding = port.get('outputBinding', None)
+        if binding:
+            return OutputPort(
+                binding=binding,
+                **port
+            )
+
+        return Port(
+            **port
+        )
+
 
 class Field(BasePort):
     def __init__(self, name: Optional[str] = None, **kwargs):
@@ -382,6 +404,29 @@ class Field(BasePort):
         else:
             super().set_property(key, value)
 
+    @staticmethod
+    def deserialize(field):
+        if isinstance(field, Field):
+            return field
+
+        binding = field.get('inputBinding', None)
+        if binding:
+            return InputField(
+                binding=binding,
+                **field
+            )
+
+        binding = field.get('outputBinding', None)
+        if binding:
+            return OutputField(
+                binding=binding,
+                **field
+            )
+
+        return Field(
+            **field
+        )
+
 
 class InputPort(Port):
     _port_type = 'input'
@@ -397,49 +442,3 @@ class InputField(Field):
 
 class OutputField(Field):
     _port_type = 'output'
-
-
-def convert_to_field(field: Union[dict, Field]):
-    if isinstance(field, Field):
-        return field
-
-    binding = field.get('inputBinding', None)
-    if binding:
-        return InputField(
-            binding=binding,
-            **field
-        )
-
-    binding = field.get('outputBinding', None)
-    if binding:
-        return OutputField(
-            binding=binding,
-            **field
-        )
-
-    return Field(
-        **field
-    )
-
-
-def convert_to_port(port: Union[dict, Port]):
-    if isinstance(port, Port):
-        return port
-
-    binding = port.get('inputBinding', None)
-    if binding:
-        return InputPort(
-            binding=binding,
-            **port
-        )
-
-    binding = port.get('outputBinding', None)
-    if binding:
-        return OutputPort(
-            binding=binding,
-            **port
-        )
-
-    return Port(
-        **port
-    )

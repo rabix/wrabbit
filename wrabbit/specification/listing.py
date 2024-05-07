@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 
 class Listing:
@@ -28,10 +28,10 @@ class Listing:
                 temp['writable'] = self.writable
             return temp
 
-
-def convert_to_listing(listing: Union[str, dict, Listing]) -> Listing:
-    if isinstance(listing, Listing):
-        return listing
-    elif isinstance(listing, str):
-        return Listing(listing)
-    return Listing(**listing)
+    @staticmethod
+    def deserialize(listing):
+        if isinstance(listing, Listing):
+            return listing
+        elif isinstance(listing, str):
+            return Listing(listing)
+        return Listing(**listing)

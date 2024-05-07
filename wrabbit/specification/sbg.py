@@ -1,5 +1,5 @@
 import copy
-from typing import Optional, Union
+from typing import Optional
 
 
 class Link:
@@ -19,15 +19,15 @@ class Link:
             temp['label'] = self.label
         return temp
 
+    @staticmethod
+    def convert_to_link(link):
+        if isinstance(link, Link):
+            return link
+        l = copy.deepcopy(link)
+        id_ = None
+        if "id" in l:
+            id_ = l.pop('id')
+        elif "id_" in l:
+            id_ = l.pop("id_")
 
-def convert_to_link(link: Union[dict, Link]) -> Link:
-    if isinstance(link, Link):
-        return link
-    l = copy.deepcopy(link)
-    id_ = None
-    if "id" in l:
-        id_ = l.pop('id')
-    elif "id_" in l:
-        id_ = l.pop("id_")
-
-    return Link(id_=id_, **l)
+        return Link(id_=id_, **l)

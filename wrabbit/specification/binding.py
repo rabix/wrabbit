@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Optional
 
 
 class Binding:
@@ -27,8 +27,8 @@ class Binding:
 
         return temp
 
-
-def convert_to_binding(binding: Union[dict, Binding]) -> Binding:
-    if isinstance(binding, Binding):
-        return binding
-    return Binding(**binding)
+    @staticmethod
+    def deserialize(binding):
+        if isinstance(binding, Binding):
+            return binding
+        return Binding(**binding)

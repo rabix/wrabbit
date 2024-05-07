@@ -32,3 +32,9 @@ class NextflowExecutionMode(Hint):
             'class': self.class_,
             'value': self.value
         }
+
+    @staticmethod
+    def deserialize(hint):
+        if isinstance(hint, Hint):
+            return hint
+        return NextflowExecutionMode(hint['value'])
