@@ -24,7 +24,7 @@ class NextflowExecutionMode(Hint):
         super().__init__()
         e_m = execution_mode
         if isinstance(execution_mode, ExecMode):
-            e_m = ExecMode.value
+            e_m = e_m.value
         self.value = e_m
 
     def serialize(self):
