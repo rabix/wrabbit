@@ -333,7 +333,7 @@ def find_config_section(file_path: str, section: str) -> str:
             if re.findall(section + r'(?:\s+|)\{', line):
                 section_text += "{\n"
                 found_section = True
-                
+
                 # Handle "section {}"
                 if line.count("{") == line.count("}"):
                     section_text += "}"
