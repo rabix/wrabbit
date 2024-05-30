@@ -1,6 +1,7 @@
 from enum import Enum
 from wrabbit.parser import read_js_template
 
+
 # ############################## Generic Bits ############################### #
 # keep track of what extensions are applicable for processing
 
@@ -20,7 +21,7 @@ class EXTENSIONS:
 # instance but are not explicitly provided to the execution as wdl params.
 SAMPLE_SHEET_FUNCTION = read_js_template("sample_sheet_generator.js")
 SAMPLE_SHEET_SWITCH = read_js_template("sample_sheet_switch.js")
-SB_SAMPLES_SCHEMA_DEFAULT_NAME = "samplesheet.csv"
+SB_SAMPLES_SCHEMA_DEFAULT_NAME = "samplesheet_schema.yaml"
 
 GENERIC_FILE_ARRAY_INPUT = {
     "id": 'auxiliary_files',
@@ -137,6 +138,7 @@ NF_CONFIG_DEFAULT_NAME = 'nextflow.config'
 NF_SCHEMA_DEFAULT_NAME = 'nextflow_schema.json'
 SB_SCHEMA_DEFAULT_NAME = 'sb_nextflow_schema'
 README_DEFAULT_NAME = 'README.md'
+MINIMUM_SUPPORTED_NF_VERSION = "21.10.0"
 
 # Mappings of nextflow input fields to SB input fields
 #  nextflow_key: cwl_key mapping

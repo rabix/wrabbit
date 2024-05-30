@@ -9,9 +9,9 @@ ${{
     }}
 
     var input_source = [];
-    if ({input_source}){
+    if ({input_source}){{
         input_source = [].concat({input_source}).sort(compareFiles);
-    };
+    }};
     if (input_source.length == 0){{
         // Return empty file if no input files are given.
         // Ensures that sample sheet is generated only if there are files to

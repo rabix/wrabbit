@@ -16,6 +16,9 @@ from wrabbit.specification.node import (
     InputPort,
     Binding,
 )
+from wrabbit.specification.sbg import (
+    ExecutorVersion,
+)
 
 from wrabbit.parser.constants import (
     NF_TO_CWL_PORT_MAP,
@@ -237,7 +240,7 @@ def get_docs_file(path):
         return None
 
 
-def get_executor_version(string):
+def get_executor_version(string: str) -> ExecutorVersion:
     # from description
     result = re.findall(
         r"\[Nextflow]\([^(]+(%E2%89%A5|%E2%89%A4|=|>|<)(\d{2}\.\d+\.\d+)[^)]+\)",
@@ -260,7 +263,7 @@ def get_executor_version(string):
             f"Identified nextflow executor version requirement "
             f"{sign} {version}"
         )
-        return sign, version
+        return ExecutorVersion(sign, version)
 
     result = re.findall(
         r"((?:[!><=]+|))([0-9.]+)((?:\+|))",
@@ -290,9 +293,9 @@ def get_executor_version(string):
             f"Identified nextflow executor version requirement "
             f"{sign} {version}"
         )
-        return sign, version
+        return ExecutorVersion(sign, version)
 
-    return None, None
+    return ExecutorVersion(None, None)
 
 
 def get_sample_sheet_schema(path):
