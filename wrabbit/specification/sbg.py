@@ -1,4 +1,5 @@
 import copy
+import logging
 from typing import Optional
 from packaging.version import Version
 from wrabbit.parser.constants import MINIMUM_SUPPORTED_NF_VERSION
@@ -38,22 +39,35 @@ class Link:
 class ExecutorVersion:
     def __init__(
             self,
-            sign: Optional[str] = "=",
-            version: Optional[str] = MINIMUM_SUPPORTED_NF_VERSION,
+            sign: Optional[str] = None,
+            version: Optional[str] = None,
     ):
         self.sign = sign
-        self.version = Version(version.replace("edge", "rc1"))
+        self.version = None
+        if version:
+            self.version = Version(version.replace("edge", "rc1"))
         # Edge versions are pre-release, same as rc.
         #  Some nf executor versions use: edge, some rc#
 
     def correct_version(self):
+        if not self.version:
+            raise ValueError(
+                "Executor Version was not set."
+            )
         if self.version >= Version(MINIMUM_SUPPORTED_NF_VERSION):
             return
         if self.sign in ['<', '=', '<=']:
             raise ValueError(
-                f"Version {self.sign}{self.version.base_version} is not "
-                f"compatible with Sevenbridges/Velsera powered platforms")
+                f"Executor version {self.sign}{self.version.base_version} is "
+                f"not compatible with Sevenbridges/Velsera powered platforms."
+            )
+        logging.info(
+            "Executor version set to the minimum supported version for "
+            "Sevenbridges/Velsera powered platforms."
+        )
         self.version = Version(MINIMUM_SUPPORTED_NF_VERSION)
 
     def serialize(self):
-        return self.version.base_version
+        if self.version:
+            return self.version.base_version
+        return None
