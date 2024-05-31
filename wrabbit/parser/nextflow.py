@@ -45,9 +45,6 @@ from wrabbit.specification.node import (
 from wrabbit.specification.hints import (
     NextflowExecutionMode,
 )
-from wrabbit.specification.sbg import (
-    ExecutorVersion,
-)
 
 from wrabbit.exceptions import (
     SampleSheetError, MalformedConfigException, ErrorMessages,
@@ -85,7 +82,7 @@ class NextflowParser:
 
         # app contents
         self.entrypoint = entrypoint
-        self.executor_version = ExecutorVersion(executor_version)
+        self.executor_version = executor_version
         self.sb_package_id = sb_package_id
 
     def generate_sb_inputs(self):
@@ -255,8 +252,7 @@ class NextflowParser:
         self.sb_wrapper.set_app_content(
             code_package=sb_package_id or self.sb_package_id,
             entrypoint=sb_entrypoint or self.entrypoint,
-            executor_version=executor_version or
-                             self.executor_version.serialize(),
+            executor_version=executor_version or self.executor_version,
         )
 
         if execution_mode:
