@@ -245,6 +245,7 @@ class BasePort:
             label: Optional[str] = None,
             doc: Optional[str] = None,
             binding: Union[dict, Binding] = None,
+            load_contents: Optional[bool] = False,
             **kwargs
     ):
         self.type_ = type_ or kwargs.pop('type', None)
@@ -253,6 +254,7 @@ class BasePort:
 
         self.label = label
         self.doc = doc
+        self.load_contents = load_contents
 
         self.binding = binding or None
         if self.binding:
@@ -260,6 +262,9 @@ class BasePort:
         self._custom_properties = dict()
         for key, value in kwargs.items():
             self.set_property(key, value)
+
+    def unbind(self):
+        self.binding = None
 
     def set_property(self, key: str, value: Any):
         if key in ('type', 'type_'):
@@ -270,6 +275,8 @@ class BasePort:
             self.doc = value
         elif key == 'label':
             self.label = value
+        elif key in ['load_contents', 'loadContents']:
+            self.load_contents = value
         else:
             self._custom_properties.update({
                 key: value
@@ -304,6 +311,8 @@ class Port(BasePort):
             if value is None:
                 continue
             if key in skip_keys:
+                continue
+            if key == 'load_contents' and value is False:
                 continue
 
             if hasattr(value, 'serialize'):
@@ -378,6 +387,8 @@ class Field(BasePort):
             if value is None:
                 continue
             if key in skip_keys:
+                continue
+            if key == 'load_contents' and value is False:
                 continue
 
             if hasattr(value, 'serialize'):

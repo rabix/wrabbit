@@ -16,6 +16,9 @@ from wrabbit.specification.node import (
     InputPort,
     Binding,
 )
+from wrabbit.specification.sbg import (
+    ExecutorVersion,
+)
 
 from wrabbit.parser.constants import (
     NF_TO_CWL_PORT_MAP,
@@ -237,7 +240,28 @@ def get_docs_file(path):
         return None
 
 
-def get_executor_version(string):
+def verify_version(sign: str, version: str, plus: str = ""):
+    if plus == "+":
+        sign = ">="
+
+    if sign in ["%E2%89%A5", ">=", "!>="]:
+        sign = ">="
+    elif sign in ["!>", ">"]:
+        sign = ">"
+    elif sign in ["%E2%89%A4", "<=", "!<="]:
+        sign = "<="
+    elif sign in ["!<", "<"]:
+        sign = "<"
+    elif not sign:
+        sign = "="
+    print(
+        f"Identified nextflow executor version requirement "
+        f"'{sign} {version}'"
+    )
+    return sign, version
+
+
+def get_executor_version(string: str):
     # from description
     result = re.findall(
         r"\[Nextflow]\([^(]+(%E2%89%A5|%E2%89%A4|=|>|<)(\d{2}\.\d+\.\d+)[^)]+\)",
@@ -245,54 +269,24 @@ def get_executor_version(string):
     )
 
     if result:
-        sign, version = result.pop(0)
-        if sign in ["%E2%89%A5", ">=", "!>="]:
-            sign = ">="
-        elif sign in ["!>", ">"]:
-            sign = ">"
-        elif sign in ["%E2%89%A4", "<=", "!<="]:
-            sign = "<="
-        elif sign in ["!<", "<"]:
-            sign = "<"
-        elif not sign:
-            sign = "="
-        print(
-            f"Identified nextflow executor version requirement "
-            f"{sign} {version}"
-        )
-        return sign, version
+        return verify_version(*result.pop(0))
 
     result = re.findall(
         r"((?:[!><=]+|))([0-9.]+)((?:\+|))",
         string
     )
 
+    # from
+    f_version = None, None
     if result:
-        result = result[0]
+        f_version = verify_version(*result[0])
 
-        if result[2] == "+":
-            sign = ">="
-        else:
-            sign = result[0]
+    # to
+    t_version = None, None
+    if len(result) > 1:
+        t_version = verify_version(*result[1])
 
-        version = result[1]
-        if sign in ["%E2%89%A5", ">=", "!>="]:
-            sign = ">="
-        elif sign in ["!>", ">"]:
-            sign = ">"
-        elif sign in ["%E2%89%A4", "<=", "!<="]:
-            sign = "<="
-        elif sign in ["!<", "<"]:
-            sign = "<"
-        elif not sign:
-            sign = "="
-        print(
-            f"Identified nextflow executor version requirement "
-            f"{sign} {version}"
-        )
-        return sign, version
-
-    return None, None
+    return ExecutorVersion(*f_version, *t_version)
 
 
 def get_sample_sheet_schema(path):

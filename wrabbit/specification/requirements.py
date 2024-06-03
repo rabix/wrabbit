@@ -27,7 +27,7 @@ class Requirement:
             raise SbTypeMissmatch(
                 f"Type missmatch. Cannot update {self} using {obj}"
             )
-        if hasattr(obj, 'listing'):
+        if hasattr(obj, 'listing') and obj.listing:
             for o_l in obj.listing:
                 self.add_listing(o_l)
 

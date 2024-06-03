@@ -32,10 +32,10 @@ class SbWrapper:
     wrapper_author = None
     licence = None
 
-    def __init__(self, label: Optional[str]=None):
+    def __init__(self, label: Optional[str] = None):
         self.label = label
 
-    def get_input(self, id_):
+    def get_input(self, id_) -> Optional[InputPort]:
         if id_ not in self.inputs:
             logging.warning(f'Input with id <{id_}> not found.')
             return None
@@ -51,7 +51,7 @@ class SbWrapper:
 
         self.inputs[inp.id_] = inp
 
-    def safe_add_input(self, inp: Union[dict, InputPort]):
+    def safe_add_input(self, inp: Union[dict, InputPort]) -> InputPort:
         inp = InputPort.deserialize(inp)
 
         temp_id = inp.id_
@@ -77,7 +77,7 @@ class SbWrapper:
         if self.get_input(id_):
             self.inputs.pop(id_)
 
-    def get_output(self, id_):
+    def get_output(self, id_) -> Optional[OutputPort]:
         if id_ not in self.outputs:
             logging.warning(f'Output with id <{id_}> not found.')
             return None
@@ -93,7 +93,7 @@ class SbWrapper:
 
         self.outputs[out.id_] = out
 
-    def safe_add_output(self, out: Union[dict, OutputPort]):
+    def safe_add_output(self, out: Union[dict, OutputPort]) -> OutputPort:
         out = OutputPort.deserialize(out)
 
         temp_id = out.id_
@@ -143,6 +143,8 @@ class SbWrapper:
         if entrypoint:
             payload['entrypoint'] = entrypoint
         if executor_version:
+            if hasattr(executor_version, 'serialize'):
+                executor_version = executor_version.serialize()
             payload['executor_version'] = executor_version
 
         payload.update(kwargs)

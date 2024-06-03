@@ -16,6 +16,7 @@ from wrabbit.parser.utils import (
     get_dict_depth,
     get_entrypoint,
     get_docs_file,
+    get_sample_sheet_schema,
 )
 
 from wrabbit.parser.constants import (
@@ -74,6 +75,8 @@ class NextflowParser:
         self.nf_config_files = get_config_files(self.workflow_path) or []
         self.nf_schema_path = get_nf_schema(self.workflow_path)
         self.readme_path = get_docs_file(self.workflow_path)
+        self.sb_samplesheet_schema = get_sample_sheet_schema(
+            self.workflow_path)
 
         self.sb_doc = sb_doc
 
@@ -188,7 +191,7 @@ class NextflowParser:
 
             executor_version = manifest_data.get('nextflowVersion', None)
             if executor_version:
-                executor_version = get_executor_version(executor_version)[-1]
+                executor_version = get_executor_version(executor_version)
             self.executor_version = self.executor_version or executor_version
 
             tk_author = manifest_data.get('author', None)
@@ -209,6 +212,10 @@ class NextflowParser:
 
         self.executor_version = self.executor_version or \
                                 get_executor_version(self.sb_doc)
+
+        # Confirm if the executor version is valid.
+        # If it is below 22.10.1 it is not supported.
+        self.executor_version.correct_version()
 
         # step2: add links
 
@@ -238,8 +245,9 @@ class NextflowParser:
         self.generate_sb_outputs()
         self.generate_app_data()
 
-        if sample_sheet_schema:
-            self.parse_sample_sheet_schema(open(sample_sheet_schema))
+        if sample_sheet_schema or self.sb_samplesheet_schema:
+            self.parse_sample_sheet_schema(open(
+                sample_sheet_schema or self.sb_samplesheet_schema))
 
         self.sb_wrapper.set_app_content(
             code_package=sb_package_id or self.sb_package_id,
@@ -336,7 +344,7 @@ class NextflowParser:
         file_input = self.sb_wrapper.safe_add_input(
             SAMPLE_SHEET_FILE_ARRAY_INPUT
         )
-        file_input_id = file_input.get('id')
+        file_input_id = file_input.id_
 
         # Step 2:
         # add argument for sample sheet
@@ -344,17 +352,13 @@ class NextflowParser:
         #                file input (ss_file_input)
         #    - if the sample sheet is provided on input,
         #      do not generate a new ss
-        input_changes = {
-            'id': sample_sheet_input,
-            'loadContents': True
-        }
-
-        prefix = self.sb_wrapper.get_input(
+        ss_input = self.sb_wrapper.get_input(
             sample_sheet_input
-        )['inputBinding']['prefix']
+        )
+        ss_input.set_property('loadContents', True)
+        prefix = ss_input.binding.prefix
+        ss_input.unbind()
 
-        self.sb_wrapper.remove_input(sample_sheet_input)
-        self.sb_wrapper.add_input(input_changes)
         self.sb_wrapper.add_argument(
             {
                 "prefix": prefix,
