@@ -37,18 +37,10 @@ class Requirement:
         if not self.listing:
             self.listing = list()
 
-        add_new_listing = False
         for ref_obj in self.listing:
-            if not self._compare_listings(ref_obj, obj):
-                add_new_listing = True
+            if ref_obj != obj:
+                self.listing.append(obj)
                 break
-
-        if add_new_listing:
-            self.listing.append(obj)
-
-    @staticmethod
-    def _compare_listings(ref, obj):
-        return ref.__dict__ == obj.__dict__
 
     def serialize(self):
         temp = {

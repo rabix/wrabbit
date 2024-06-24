@@ -35,3 +35,8 @@ class Listing:
         elif isinstance(listing, str):
             return Listing(listing)
         return Listing(**listing)
+
+    def __eq__(self, other):
+        assert isinstance(other, Listing)
+
+        return self.__dict__ == other.__dict__

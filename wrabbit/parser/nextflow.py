@@ -61,10 +61,10 @@ from wrabbit.wrapper.wrapper import SbWrapper
 
 
 class NextflowParser:
-    nf_config_files = []
-    nf_schema_path = None
-    readme_path = None
-    sb_samplesheet_schema = None
+    nf_config_files: list
+    nf_schema_path: Optional[str]
+    readme_path: Optional[str]
+    sb_samplesheet_schema: Optional[str]
 
     def __init__(
             self, workflow_path: str,
@@ -78,10 +78,11 @@ class NextflowParser:
         self.workflow_path = workflow_path
 
         # Locate nextflow files in the package if possible
-        self.get_config_files()
-        self.get_nf_schema()
-        self.get_docs_file()
-        self.get_sample_sheet_schema()
+        self.init_config_files()
+        self.nf_schema_path = get_nf_schema(self.workflow_path)
+        self.readme_path = get_docs_file(self.workflow_path)
+        self.sb_samplesheet_schema = get_sample_sheet_schema(
+            self.workflow_path)
 
         self.sb_doc = sb_doc
 
@@ -90,18 +91,12 @@ class NextflowParser:
         self.executor_version = executor_version
         self.sb_package_id = sb_package_id
 
-    def get_config_files(self):
+    def init_config_files(self):
+        """
+        Config may be initialized multiple times while working with a code
+        package in case a new config file is generated with nf-core lib.
+        """
         self.nf_config_files = get_config_files(self.workflow_path) or []
-
-    def get_nf_schema(self):
-        self.nf_schema_path = get_nf_schema(self.workflow_path)
-
-    def get_docs_file(self):
-        self.readme_path = get_docs_file(self.workflow_path)
-
-    def get_sample_sheet_schema(self):
-        self.sb_samplesheet_schema = get_sample_sheet_schema(
-            self.workflow_path)
 
     def generate_sb_inputs(self):
         """
