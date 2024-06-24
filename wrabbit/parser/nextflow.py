@@ -34,6 +34,7 @@ from wrabbit.parser.constants import (
     SAMPLE_SHEET_SWITCH,
     LOAD_LISTING_REQUIREMENT,
     SKIP_NEXTFLOW_TOWER_KEYS,
+    NFCORE_OUTPUT_DIRECTORY_ID,
 )
 
 from wrabbit.specification.node import (
@@ -60,6 +61,11 @@ from wrabbit.wrapper.wrapper import SbWrapper
 
 
 class NextflowParser:
+    nf_config_files = []
+    nf_schema_path = None
+    readme_path = None
+    sb_samplesheet_schema = None
+
     def __init__(
             self, workflow_path: str,
             sb_doc: Optional[str] = None,
@@ -72,11 +78,10 @@ class NextflowParser:
         self.workflow_path = workflow_path
 
         # Locate nextflow files in the package if possible
-        self.nf_config_files = get_config_files(self.workflow_path) or []
-        self.nf_schema_path = get_nf_schema(self.workflow_path)
-        self.readme_path = get_docs_file(self.workflow_path)
-        self.sb_samplesheet_schema = get_sample_sheet_schema(
-            self.workflow_path)
+        self.get_config_files()
+        self.get_nf_schema()
+        self.get_docs_file()
+        self.get_sample_sheet_schema()
 
         self.sb_doc = sb_doc
 
@@ -84,6 +89,19 @@ class NextflowParser:
         self.entrypoint = entrypoint
         self.executor_version = executor_version
         self.sb_package_id = sb_package_id
+
+    def get_config_files(self):
+        self.nf_config_files = get_config_files(self.workflow_path) or []
+
+    def get_nf_schema(self):
+        self.nf_schema_path = get_nf_schema(self.workflow_path)
+
+    def get_docs_file(self):
+        self.readme_path = get_docs_file(self.workflow_path)
+
+    def get_sample_sheet_schema(self):
+        self.sb_samplesheet_schema = get_sample_sheet_schema(
+            self.workflow_path)
 
     def generate_sb_inputs(self):
         """
@@ -159,6 +177,12 @@ class NextflowParser:
                         required=req,
                     ))
 
+        # Remap publishDir to string type
+        if temp := self.sb_wrapper.get_input(NFCORE_OUTPUT_DIRECTORY_ID):
+            print(f"Detected publishDir input --{temp.id_}. Remapping to "
+                  f"string type input.")
+            temp.set_property('type', 'string')
+
         # Add the generic file array input - auxiliary files
         self.sb_wrapper.safe_add_input(GENERIC_FILE_ARRAY_INPUT)
         self.sb_wrapper.safe_add_input(NF_PARAMS_FILE_INPUT)
@@ -210,12 +234,13 @@ class NextflowParser:
                 # Stop searching if manifest is found
                 break
 
-        self.executor_version = self.executor_version or \
-                                get_executor_version(self.sb_doc)
+        if not self.executor_version and self.sb_doc:
+            self.executor_version = get_executor_version(self.sb_doc)
 
-        # Confirm if the executor version is valid.
-        # If it is below 22.10.1 it is not supported.
-        self.executor_version.correct_version()
+        if self.executor_version:
+            # Confirm if the executor version is valid.
+            # If it is below 22.10.1 it is not supported.
+            self.executor_version.correct_version()
 
         # step2: add links
 

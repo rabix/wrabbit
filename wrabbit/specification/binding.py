@@ -10,8 +10,10 @@ class Binding:
             **kwargs
     ):
         self.prefix = prefix
-        self.item_separator = item_separator
-        self.shell_quote = shell_quote
+        self.item_separator = item_separator or \
+            kwargs.get('itemSeparator', None)
+        self.shell_quote = shell_quote or \
+            kwargs.get('shellQuote', None)
         self.glob = glob
 
     def serialize(self):

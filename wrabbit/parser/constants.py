@@ -66,17 +66,19 @@ SAMPLE_SHEET_FILE_ARRAY_INPUT = {
 }
 
 GENERIC_NF_OUTPUT_DIRECTORY = {
-    "id": "nf_workdir",
+    "id": "nf_publishdir",
     "type": [
         'null',
-        'Directory'
+        {
+            'type': 'array',
+            'items': 'File'
+        }
     ],
-    "label": "Work Directory",
+    "label": "Publish Directory",
     "doc": "This is a template output. "
-           "Please change glob to directories specified in "
-           "publishDir in the workflow.",
+           "You can modify the glob pattern to make outputs more specific.",
     "outputBinding": {
-        'glob': "work"
+        'glob': "*"
     }
 }
 
@@ -139,6 +141,7 @@ NF_SCHEMA_DEFAULT_NAME = 'nextflow_schema.json'
 SB_SCHEMA_DEFAULT_NAME = 'sb_nextflow_schema'
 README_DEFAULT_NAME = 'README.md'
 MINIMUM_SUPPORTED_NF_VERSION = "21.10.0"
+NFCORE_OUTPUT_DIRECTORY_ID = 'outdir'
 
 # Mappings of nextflow input fields to SB input fields
 #  nextflow_key: cwl_key mapping

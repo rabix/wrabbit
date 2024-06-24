@@ -226,7 +226,7 @@ def get_nf_schema(string):
     if os.path.exists(path):
         return path
     else:
-        raise Exception()
+        return None
 
 
 def get_docs_file(path):
