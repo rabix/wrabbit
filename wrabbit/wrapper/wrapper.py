@@ -139,13 +139,14 @@ class SbWrapper:
     ):
         payload = dict()
 
+        if hasattr(executor_version, 'serialize'):
+            executor_version = executor_version.serialize()
+
         if code_package:
             payload['code_package'] = code_package
         if entrypoint:
             payload['entrypoint'] = entrypoint
         if executor_version:
-            if hasattr(executor_version, 'serialize'):
-                executor_version = executor_version.serialize()
             payload['executor_version'] = executor_version
 
         payload.update(kwargs)

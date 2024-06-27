@@ -272,7 +272,7 @@ def get_executor_version(string: str):
         return verify_version(*result.pop(0))
 
     result = re.findall(
-        r"((?:[!><=]+|))([0-9.]+)((?:\+|))",
+        r"((?:[!><=]+|))(\d{2}\.\d+\.\d+)((?:\+|))",
         string
     )
 
@@ -299,7 +299,28 @@ def get_sample_sheet_schema(path):
         return None
 
 
-def get_config_files(path):
+def get_config_files(path: str) -> list:
+    """
+    Auto find config files.
+    """
+    paths = list_config_files(path)
+    all_paths = paths
+    include_pattern = re.compile(
+        r'^includeConfig\s+[\'\"]([a-zA-Z_.\\/]+)[\'\"]'
+    )
+
+    for config_path in paths:
+        with open(config_path, 'r') as config_file:
+            for line in config_file.readlines():
+                if include_path := re.findall(include_pattern, line):
+                    chk = os.path.join(path, include_path[0])
+                    if os.path.exists(chk):
+                        all_paths.append(chk)
+
+    return all_paths
+
+
+def list_config_files(path: str) -> list:
     """
     Auto find config files.
     """
@@ -334,6 +355,45 @@ def find_config_section(file_path: str, section: str) -> str:
                     break
 
     return section_text
+
+
+def find_publish_params(file_path: str) -> set:
+    sections = []
+    section_text = ""
+    brackets = 0
+    found_section = False
+
+    with open(file_path, 'r') as file:
+        for line in file.readlines():
+            if found_section:
+                section_text += line
+                brackets += line.count("[") - line.count("]")
+
+            if brackets < 0:
+                sections.append(section_text)
+                brackets = 0
+                section_text = ""
+                found_section = False
+
+            if re.findall(r'publishDir(?:\s|)=(?:\s+|)\[', line):
+                section_text += "[\n"
+                found_section = True
+
+                # Handle "section []"
+                if line.count("[") == line.count("]"):
+                    section_text += "]"
+                    sections.append(section_text)
+                    brackets = 0
+                    section_text = ""
+                    found_section = False
+
+    params = set()
+
+    for s in sections:
+        if param := re.findall(r"path:[^$]+\$\{(?:\s+|)params\.(\w+)", s):
+            params = params.union(set(param))
+
+    return params
 
 
 def parse_manifest(file_path: str) -> dict:

@@ -17,6 +17,7 @@ from wrabbit.parser.utils import (
     get_entrypoint,
     get_docs_file,
     get_sample_sheet_schema,
+    find_publish_params,
 )
 
 from wrabbit.parser.constants import (
@@ -45,6 +46,9 @@ from wrabbit.specification.node import (
 )
 from wrabbit.specification.hints import (
     NextflowExecutionMode,
+)
+from wrabbit.specification.sbg import (
+    ExecutorVersion
 )
 
 from wrabbit.exceptions import (
@@ -173,10 +177,36 @@ class NextflowParser:
                     ))
 
         # Remap publishDir to string type
+        found_publish_dir = False
         if temp := self.sb_wrapper.get_input(NFCORE_OUTPUT_DIRECTORY_ID):
             print(f"Detected publishDir input --{temp.id_}. Remapping to "
                   f"string type input.")
             temp.set_property('type', 'string')
+            found_publish_dir = True
+
+        if not found_publish_dir:
+            # Look for publish dir in config files
+            pub_dir_params = set()
+            for config_file in self.nf_config_files:
+                pub_dir_params = pub_dir_params.union(
+                    find_publish_params(config_file)
+                )
+
+            pub_dir_params = list(pub_dir_params)
+
+            if pub_dir_params:
+                if len(pub_dir_params) == 1:
+                    id_ = pub_dir_params.pop()
+                    print(f"Detected publishDir input --{id_}. Remapping to "
+                          f"string type input.")
+                    if temp := self.sb_wrapper.get_input(id_):
+                        temp.set_property('type', 'string')
+                    else:
+                        print(f"Input --{id_} not found.")
+
+                if len(pub_dir_params) > 1:
+                    print(f"Detected multiple possible publishDir inputs. "
+                          f"Skipping remapping.")
 
         # Add the generic file array input - auxiliary files
         self.sb_wrapper.safe_add_input(GENERIC_FILE_ARRAY_INPUT)
@@ -208,10 +238,13 @@ class NextflowParser:
             self.entrypoint = self.entrypoint or manifest_data.get(
                 'mainScript', None) or get_entrypoint(self.workflow_path)
 
-            executor_version = manifest_data.get('nextflowVersion', None)
-            if executor_version:
-                executor_version = get_executor_version(executor_version)
-            self.executor_version = self.executor_version or executor_version
+            if not self.executor_version:
+                executor_version = manifest_data.get('nextflowVersion', None)
+                if executor_version:
+                    executor_version = get_executor_version(executor_version)
+                self.executor_version = executor_version
+            else:
+                print(f"Using provided version {self.executor_version}")
 
             tk_author = manifest_data.get('author', None)
             if not self.sb_wrapper.toolkit_author:
@@ -232,7 +265,8 @@ class NextflowParser:
         if not self.executor_version and self.sb_doc:
             self.executor_version = get_executor_version(self.sb_doc)
 
-        if self.executor_version:
+        if self.executor_version and \
+                isinstance(self.executor_version, ExecutorVersion):
             # Confirm if the executor version is valid.
             # If it is below 22.10.1 it is not supported.
             self.executor_version.correct_version()

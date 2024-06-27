@@ -60,9 +60,7 @@ class ExecutorVersion:
 
     def correct_version(self):
         if not self.from_version:
-            raise ValueError(
-                "Executor Version was not set."
-            )
+            return
         if self._from_version >= Version(MINIMUM_SUPPORTED_NF_VERSION):
             return
         if self.from_sign in ['<', '=', '<=']:
