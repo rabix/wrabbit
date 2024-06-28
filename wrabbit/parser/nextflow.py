@@ -236,7 +236,7 @@ class NextflowParser:
             manifest_data = parse_manifest(file)
 
             self.entrypoint = self.entrypoint or manifest_data.get(
-                'mainScript', None) or get_entrypoint(self.workflow_path)
+                'mainScript', None)
 
             if not self.executor_version:
                 executor_version = manifest_data.get('nextflowVersion', None)
@@ -262,6 +262,9 @@ class NextflowParser:
                 # Stop searching if manifest is found
                 break
 
+        if not self.entrypoint:
+            self.entrypoint = get_entrypoint(self.workflow_path)
+
         if not self.executor_version and self.sb_doc:
             self.executor_version = get_executor_version(self.sb_doc)
 
@@ -280,6 +283,12 @@ class NextflowParser:
         # },
         # manifest.homePage
 
+    def nf_schema_build(self):
+        """
+        To be replaced before used.
+        """
+        pass
+
     def generate_sb_app(
             self, sb_entrypoint='main.nf',
             executor_version: Optional[str] = None,
@@ -295,9 +304,10 @@ class NextflowParser:
         self.sb_wrapper.cwl_version = 'None'
         self.sb_wrapper.class_ = 'nextflow'
 
+        self.generate_app_data()
+        self.nf_schema_build()
         self.generate_sb_inputs()
         self.generate_sb_outputs()
-        self.generate_app_data()
 
         if sample_sheet_schema or self.sb_samplesheet_schema:
             self.parse_sample_sheet_schema(open(
@@ -445,7 +455,7 @@ class NextflowParser:
         self.sb_wrapper.add_requirement(INLINE_JS_REQUIREMENT)
         self.sb_wrapper.add_requirement(LOAD_LISTING_REQUIREMENT)
 
-    def make_output_type(self, key, output_dict, is_record=False):
+    def make_output_type(self, key, output_dict, is_record=False) -> dict:
         """
         This creates an output of specific type based on information provided
         through output_dict.
