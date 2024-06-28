@@ -37,8 +37,10 @@ class Requirement:
         if not self.listing:
             self.listing = list()
 
-        if obj not in self.listing:
-            self.listing.append(obj)
+        for ref_obj in self.listing:
+            if ref_obj != obj:
+                self.listing.append(obj)
+                break
 
     def serialize(self):
         temp = {

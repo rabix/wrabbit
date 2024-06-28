@@ -128,6 +128,7 @@ class SbWrapper:
         for req in self.requirements:
             if req.class_ == requirement.class_:
                 req.update(requirement)
+                break
         else:
             # add new class
             self.requirements.append(requirement)
