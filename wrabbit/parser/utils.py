@@ -381,6 +381,7 @@ def find_publish_params(file_path: str) -> set:
 
                 # Handle "section []"
                 if line.count("[") == line.count("]"):
+                    section_text += line[line.index("[")+1:line.index("]")]
                     section_text += "]"
                     sections.append(section_text)
                     brackets = 0
