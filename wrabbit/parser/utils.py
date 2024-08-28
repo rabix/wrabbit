@@ -328,7 +328,7 @@ def list_config_files(path: str) -> list:
     for file in os.listdir(path):
         if file.lower().endswith('.config'):
             paths.append(os.path.join(path, file))
-    return paths or None
+    return paths
 
 
 def find_config_section(file_path: str, section: str) -> str:
