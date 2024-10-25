@@ -31,6 +31,7 @@ class SbWrapper:
     toolkit_author = None
     wrapper_author = None
     licence = None
+    other_keys = None
 
     def __init__(self, label: Optional[str] = None):
         self.label = label
@@ -190,59 +191,85 @@ class SbWrapper:
     def add_licence(self, licence):
         self.licence = licence
 
+    def add_other_keys(self, other_keys):
+        self.other_keys = other_keys
+
     def load(self, schema):
+        keys_to_remove = []
         self.label = schema.get('label', None)
+        keys_to_remove.append('label')
 
         s_inputs = schema.get('inputs', [])
         for input_ in s_inputs:
             self.add_input(input_)
+        keys_to_remove.append('inputs')
 
         s_outputs = schema.get('outputs', [])
         for output in s_outputs:
             self.add_output(output)
+        keys_to_remove.append('outputs')
 
         s_app_content = schema.get('app_content', dict())
         self.set_app_content(**s_app_content)
+        keys_to_remove.append('app_content')
 
         self.class_ = schema.get('class', None)
+        keys_to_remove.append('class')
         self.cwl_version = schema.get('cwlVersion', None)
+        keys_to_remove.append('cwlVersion')
 
         s_arguments = schema.get('arguments', [])
         for argument in s_arguments:
             self.add_argument(argument)
+        keys_to_remove.append('arguments')
 
         s_requirements = schema.get('requirements', [])
         for requirement in s_requirements:
             self.add_requirement(requirement)
+        keys_to_remove.append('requirements')
 
         s_hints = schema.get('hints', [])
         for hint in s_hints:
             self.add_hint(hint)
+        keys_to_remove.append('hints')
 
         s_doc = schema.get('doc', None)
         if s_doc:
             self.add_docs(s_doc)
+        keys_to_remove.append('doc')
 
         s_tk_author = schema.get('sbg:toolAuthor', None)
         if s_tk_author:
             self.add_toolkit_author(s_tk_author)
+        keys_to_remove.append('sbg:toolAuthor')
 
         s_w_author = schema.get('sbg:wrapperAuthor', None)
         if s_w_author:
             self.add_wrapper_author(s_w_author)
+        keys_to_remove.append('sbg:wrapperAuthor')
 
         s_links = schema.get('sbg:links', None)
         if s_links:
             for link in s_links:
                 self.add_link(link)
+        keys_to_remove.append('sbg:links')
 
         s_licence = schema.get('sbg:license', None)
         if s_licence:
             self.add_licence(s_licence)
+        keys_to_remove.append('sbg:license')
 
         s_revision_note = schema.get('sbg:revisionNote', None)
         if s_revision_note:
             self.add_revision_note(s_revision_note)
+        keys_to_remove.append('sbg:revisionNote')
+
+        other_keys = {
+            key: value for key, value in schema.items() if
+            key not in keys_to_remove
+        }
+        if other_keys:
+            self.add_other_keys(other_keys)
 
     def dump(self):
         wrapper = dict()
@@ -297,5 +324,8 @@ class SbWrapper:
 
         if self.revision_note:
             wrapper['sbg:revisionNotes'] = self.revision_note
+
+        if self.other_keys:
+            wrapper.update(self.other_keys)
 
         return recursive_serialize(wrapper)
