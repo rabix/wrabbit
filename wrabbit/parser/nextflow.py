@@ -102,10 +102,13 @@ class NextflowParser:
         """
         self.nf_config_files = get_config_files(self.workflow_path) or []
 
-    def generate_sb_inputs(self):
+    def generate_sb_inputs(self, execution_mode=None):
         """
         Generate SB inputs schema
         """
+        if execution_mode:
+            if isinstance(execution_mode, ExecMode):
+                execution_mode = execution_mode.value
 
         # ## Add profiles to the input ## #
 
@@ -148,8 +151,13 @@ class NextflowParser:
             for p_key, p_value in nf_schema.get('properties', {}).items():
                 self.sb_wrapper.safe_add_input(
                     nf_to_sb_input_mapper(p_key, p_value))
-            for def_name, definition in nf_schema.get(
-                    'definitions', {}).items():
+
+            definitions_dict = nf_schema.get(
+                'definitions', {})
+            definitions_dict.update(nf_schema.get(
+                '$defs', {}
+            ))
+            for def_name, definition in definitions_dict.items():
                 # Nextflow inputs schema contains multiple definitions where
                 # each definition contains multiple properties
                 category = dict()
@@ -211,7 +219,10 @@ class NextflowParser:
         # Add the generic file array input - auxiliary files
         self.sb_wrapper.safe_add_input(GENERIC_FILE_ARRAY_INPUT)
         self.sb_wrapper.safe_add_input(NF_PARAMS_FILE_INPUT)
-        self.sb_wrapper.add_requirement(AUX_FILES_REQUIREMENT)
+
+        if execution_mode == ExecMode.single:
+            self.sb_wrapper.add_requirement(AUX_FILES_REQUIREMENT)
+
         self.sb_wrapper.add_requirement(INLINE_JS_REQUIREMENT)
 
     def generate_sb_outputs(self):
@@ -306,7 +317,7 @@ class NextflowParser:
 
         self.generate_app_data()
         self.nf_schema_build()
-        self.generate_sb_inputs()
+        self.generate_sb_inputs(execution_mode)
         self.generate_sb_outputs()
 
         if sample_sheet_schema or self.sb_samplesheet_schema:
