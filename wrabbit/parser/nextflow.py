@@ -1,7 +1,6 @@
 from typing import (
     Union,
     Optional,
-    TextIO,
 )
 
 from wrabbit.parser.utils import (
@@ -13,16 +12,18 @@ from wrabbit.parser.utils import (
     create_profile_enum,
     nf_to_sb_input_mapper,
     get_tower_yml,
-    get_dict_depth,
+    parse_output_yml,
     get_entrypoint,
     get_docs_file,
     get_sample_sheet_schema,
     find_publish_params,
+    convert_images_to_md,
 )
 
 from wrabbit.parser.constants import (
     sample_sheet,
     ExecMode,
+    ImageMode,
     SB_SCHEMA_DEFAULT_NAME,
     EXTENSIONS,
     NF_TO_CWL_CATEGORY_MAP,
@@ -34,19 +35,13 @@ from wrabbit.parser.constants import (
     SAMPLE_SHEET_FILE_ARRAY_INPUT,
     SAMPLE_SHEET_SWITCH,
     LOAD_LISTING_REQUIREMENT,
-    SKIP_NEXTFLOW_TOWER_KEYS,
     NFCORE_OUTPUT_DIRECTORY_ID,
 )
 
-from wrabbit.specification.node import (
-    RecordType,
-    FileType,
-    DirectoryType,
-    ArrayType,
-)
 from wrabbit.specification.hints import (
     NextflowExecutionMode,
 )
+
 from wrabbit.specification.sbg import (
     ExecutorVersion
 )
@@ -57,7 +52,6 @@ from wrabbit.exceptions import (
 )
 
 import yaml
-import re
 import os
 import json
 
@@ -77,18 +71,33 @@ class NextflowParser:
             entrypoint: Optional[str] = None,
             executor_version: Optional[str] = None,
             sb_package_id: Optional[str] = None,
+            readme_path: Optional[str] = None,
+            search_subfolders: Optional[bool] = False,
+            image_mode: Optional[ImageMode] = ImageMode.light
     ):
+        self.search_subfolders = search_subfolders
         self.sb_wrapper = SbWrapper(label)
         self.workflow_path = workflow_path
 
         # Locate nextflow files in the package if possible
         self.init_config_files()
-        self.nf_schema_path = get_nf_schema(self.workflow_path)
-        self.readme_path = get_docs_file(self.workflow_path)
+        self.nf_schema_path = get_nf_schema(
+            self.workflow_path, search_subfolders=self.search_subfolders
+        )
+
+        if readme_path:
+            self.readme_path = readme_path
+        else:
+            self.readme_path = get_docs_file(
+                self.workflow_path, search_subfolders=self.search_subfolders
+            )
+
         self.sb_samplesheet_schema = get_sample_sheet_schema(
-            self.workflow_path)
+            self.workflow_path, search_subfolders=self.search_subfolders
+        )
 
         self.sb_doc = sb_doc
+        self.image_mode = image_mode
 
         # app contents
         self.entrypoint = entrypoint
@@ -100,7 +109,9 @@ class NextflowParser:
         Config may be initialized multiple times while working with a code
         package in case a new config file is generated with nf-core lib.
         """
-        self.nf_config_files = get_config_files(self.workflow_path) or []
+        self.nf_config_files = get_config_files(
+            self.workflow_path, search_subfolders=self.search_subfolders
+        ) or []
 
     def generate_sb_inputs(self, execution_mode=None):
         """
@@ -230,8 +241,10 @@ class NextflowParser:
         Generate SB output schema
         """
         if get_tower_yml(self.workflow_path):
-            for output in self.parse_output_yml(
-                    open(get_tower_yml(self.workflow_path))
+            for output in parse_output_yml(
+                    open(get_tower_yml(
+                        self.workflow_path, search_subfolders=True
+                    ))
             ):
                 self.sb_wrapper.safe_add_output(output)
 
@@ -274,7 +287,9 @@ class NextflowParser:
                 break
 
         if not self.entrypoint:
-            self.entrypoint = get_entrypoint(self.workflow_path)
+            self.entrypoint = get_entrypoint(
+                self.workflow_path, search_subfolders=self.search_subfolders
+            )
 
         if not self.executor_version and self.sb_doc:
             self.executor_version = get_executor_version(self.sb_doc)
@@ -301,7 +316,7 @@ class NextflowParser:
         pass
 
     def generate_sb_app(
-            self, sb_entrypoint='main.nf',
+            self, sb_entrypoint: Optional[str] = None,
             executor_version: Optional[str] = None,
             sb_package_id: Optional[str] = None,
             execution_mode: Optional[Union[str, ExecMode]] = None,
@@ -338,8 +353,8 @@ class NextflowParser:
         if self.sb_doc:
             self.sb_wrapper.add_docs(self.sb_doc)
         elif self.readme_path:
-            with open(self.readme_path, 'r') as docs:
-                self.sb_wrapper.add_docs(docs.read())
+            docs = convert_images_to_md(self.readme_path, self.image_mode)
+            self.sb_wrapper.add_docs(docs)
 
     def parse_sample_sheet_schema(self, path):
         """
@@ -465,111 +480,6 @@ class NextflowParser:
         self.sb_wrapper.add_requirement(ss)
         self.sb_wrapper.add_requirement(INLINE_JS_REQUIREMENT)
         self.sb_wrapper.add_requirement(LOAD_LISTING_REQUIREMENT)
-
-    def make_output_type(self, key, output_dict, is_record=False) -> dict:
-        """
-        This creates an output of specific type based on information provided
-        through output_dict.
-
-        :param key:
-        :param output_dict:
-        :param is_record:
-        :return:
-        """
-
-        converted_cwl_output = dict()
-
-        file_pattern = re.compile(r'.*\.(\w+)$')
-        folder_pattern = re.compile(r'[^.]+$')
-        id_key = 'id'
-
-        if is_record:
-            id_key = 'name'
-
-        name = key
-        if 'display' in output_dict:
-            name = output_dict['display']
-
-        clean_id = re.sub(r'[^a-zA-Z0-9_]', "", name.replace(
-            " ", "_")).lower()
-
-        # Case 1: Output is a Record-type
-        if get_dict_depth(output_dict) > 0:
-            # this is a record, go through the dict_ recursively
-            fields = [self.make_output_type(key, val, is_record=True)
-                      for key, val in output_dict.items()]
-
-            used_field_ids = set()
-
-            for field in fields:
-                base_field_id = field.get('name', 'Output')
-
-                # Since name fields can be the same for multiple inputs,
-                # correct the name if it has already been used.
-                chk_id = base_field_id
-                i = 1
-                if chk_id in used_field_ids:
-                    chk_id = f"{base_field_id}_{i}"
-                    i += 1
-                used_field_ids.add(chk_id)
-
-                field['name'] = chk_id
-
-            converted_cwl_output = {
-                id_key: clean_id,
-                "label": name,
-                "type": RecordType(fields=fields, name=clean_id, optional=True)
-            }
-
-        # Case 2: Output is a File type
-        elif re.fullmatch(file_pattern, key):
-            # create a list of files output
-            converted_cwl_output = {
-                id_key: clean_id,
-                "label": name,
-                "type": ArrayType(items=[FileType()], optional=True),
-                "outputBinding": {
-                    "glob": key
-                }
-            }
-
-        # Case 3: Output is a folder type
-        elif re.fullmatch(folder_pattern, key):
-            # create a list of directories output
-            converted_cwl_output = {
-                id_key: clean_id,
-                "label": name,
-                "type": DirectoryType(optional=True),
-                "outputBinding": {
-                    "glob": key,
-                    "loadListing": "deep_listing"
-                }
-            }
-        return converted_cwl_output
-
-    def parse_output_yml(self, yml_file: TextIO) -> list:
-        """
-        Extracts output information from a YAML file, usually in tower.yml
-        format.
-
-        :param yml_file: path to YAML file.
-        :return: list of outputs in CWL format.
-        """
-        outputs = list()
-        yml_schema = yaml.safe_load(yml_file)
-
-        for key, value in yml_schema.items():
-            # Tower yml file can use "tower" key in the yml file to designate
-            # some configurations tower uses. Since these are not output
-            # definitions, we skip these.
-            if key in SKIP_NEXTFLOW_TOWER_KEYS:
-                continue
-
-            outputs.append(
-                self.make_output_type(key, value)
-            )
-
-        return outputs
 
     def dump_sb_wrapper(self, out_format=EXTENSIONS.yaml):
         """

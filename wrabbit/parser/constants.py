@@ -19,6 +19,10 @@ class EXTENSIONS:
 # ############################ CWL Standard Bits ############################ #
 # A generic SB input array of files that should be available on the
 # instance but are not explicitly provided to the execution as wdl params.
+
+# This looks best on the platform
+MAX_APP_DESCRIPTION_IMAGE_WIDTH = 1000
+
 SAMPLE_SHEET_FUNCTION = read_js_template("sample_sheet_generator.js")
 SAMPLE_SHEET_SWITCH = read_js_template("sample_sheet_switch.js")
 SB_SAMPLES_SCHEMA_DEFAULT_NAME = "samplesheet_schema.yaml"
@@ -136,6 +140,9 @@ def sample_sheet(
 # ############################## Nextflow Bits ############################## #
 # Keys that should be skipped when parsing nextflow tower yaml file
 
+REGEX_NF_VERSION_PIL = r"\[Nextflow]\([^(]+(%E2%89%A5|%E2%89%A4|=|>|<)(\d{2}\.\d+\.\d+)[^)]+\)"
+REGEX_NF_VERSION_NUM = r"((?:[!><=]+|))(\d{2}\.\d+\.\d+)((?:\+|))"
+
 NF_CONFIG_DEFAULT_NAME = 'nextflow.config'
 NF_SCHEMA_DEFAULT_NAME = 'nextflow_schema.json'
 SB_SCHEMA_DEFAULT_NAME = 'sb_nextflow_schema'
@@ -173,6 +180,31 @@ SKIP_NEXTFLOW_TOWER_KEYS = [
 class ExecMode(Enum):
     single = 'single-instance'
     multi = 'multi-instance'
+
+    def __str__(self):
+        return self.value
+
+# ############################ Image generation ############################# #
+# This part contains constants related to image generation for Markdown
+
+# Find Markdown images
+REGEX_MD_IMAGE = r'((?:!|)\[([^\[\]]+)]\(([^\[\]\(\)]+\.((?:jpe?g|png)))({opt}#gh-{image_mode}-mode-only|)((?:#sbg_.*|))\))'
+# Find <p><img> in HTML
+REGEX_HTML_IMAGE = r'(?:<p(?:[^>]+)>.*?)<img[^>]+>(?:.*?</p>)'
+# Find <h><picture> in HTML
+REGEX_HTML_PICTURE = r'(?:<h\d>).*?<picture>.*?</picture>.*?(?:</h\d>)'
+
+
+class ImageMode(Enum):
+    light = 'light'
+    dark = 'dark'
+
+    @property
+    def opposite(self):
+        return {
+            'light': 'dark',
+            'dark': 'light',
+        }[self.value]
 
     def __str__(self):
         return self.value
