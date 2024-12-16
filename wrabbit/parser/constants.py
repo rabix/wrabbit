@@ -201,10 +201,7 @@ class ImageMode(Enum):
 
     @property
     def opposite(self):
-        return {
-            'light': 'dark',
-            'dark': 'light',
-        }[self.value]
+        return self.light if self.value == self.dark else self.dark
 
     def __str__(self):
         return self.value

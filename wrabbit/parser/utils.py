@@ -131,6 +131,40 @@ def type_mapper(port_data: Union[str, dict], name=None):
         return temp_type_list
 
 
+def subfolder_search(func, path, prefix, *args):
+    # Check inner directories for a possible path
+    list_of_paths = os.listdir(path)
+    full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
+    dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
+    if len(dirs) == 1:
+        # If the contents of a directory is a single directory,
+        # look through it
+        for pfx, d in dirs:
+            p = func(
+                d, prefix=(*prefix, pfx), search_subfolders=True, *args
+            )
+            if p:
+                return p
+    return None
+
+
+def subfolder_search_single(func, string):
+    # Check inner directories for a possible path
+    list_of_paths = os.listdir(string)
+    full_paths = [os.path.join(string, d) for d in list_of_paths]
+    dirs = [d for d in full_paths if os.path.isdir(d)]
+    if len(dirs) == 1:
+        # If the contents of a directory is a single directory,
+        # look through it
+        for d in dirs:
+            p = func(
+                d, search_subfolders=True
+            )
+            if p is not None:
+                return p
+    return None
+
+
 def create_profile_enum(profiles: list):
     """
     If profiles are defined in the config file, this input stores the profiles
@@ -176,24 +210,12 @@ def get_readme(path, prefix=(), search_subfolders=False):
     """
     Find readme file is there is one in the path folder
     """
-    list_of_paths = os.listdir(path)
     for file in os.listdir(path):
         if file.lower() == 'readme.md':
             return os.path.join(path, file)
 
     if search_subfolders:
-        # Check inner directories for a possible path
-        full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-        dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-        if len(dirs) == 1:
-            # If the contents of a directory is a single directory,
-            # look through it
-            for pfx, d in dirs:
-                p = get_readme(
-                    d, prefix=(*prefix, pfx), search_subfolders=True
-                )
-                if p is not None:
-                    return p
+        return subfolder_search(get_readme, path, prefix)
     return None
 
 
@@ -207,18 +229,7 @@ def get_tower_yml(path, prefix=(), search_subfolders=False):
             return os.path.join(path, file)
 
     if search_subfolders:
-        # Check inner directories for a possible path
-        full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-        dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-        if len(dirs) == 1:
-            # If the contents of a directory is a single directory,
-            # look through it
-            for pfx, d in dirs:
-                p = get_tower_yml(
-                    d, prefix=(*prefix, pfx), search_subfolders=True
-                )
-                if p is not None:
-                    return p
+        return subfolder_search(get_tower_yml, path, prefix)
     return None
 
 
@@ -245,28 +256,11 @@ def get_entrypoint(
             'you want to use as the workflow entrypoint')
     elif len(possible_paths) == 1:
         return possible_paths[0]
+
+    if search_subfolders and len(possible_paths) == 0:
+        return subfolder_search(get_entrypoint, path, prefix, search_for)
     else:
-        if search_subfolders:
-            # Check inner directories for a possible path
-            full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-            dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-            if len(possible_paths) == 0 and len(dirs) == 1:
-                # If the contents of a directory is a single directory,
-                # look through it
-                for pfx, d in dirs:
-                    p = get_entrypoint(
-                        d, prefix=(*prefix, pfx), search_subfolders=True
-                    )
-                    if p is not None:
-                        possible_paths.append(p)
-                if len(possible_paths) == 1:
-                    return possible_paths[0]
-                else:
-                    return None
-            else:
-                return None
-        else:
-            return None
+        return None
 
 
 def get_latest_sb_schema(path, prefix=(), search_subfolders=False):
@@ -294,18 +288,7 @@ def get_latest_sb_schema(path, prefix=(), search_subfolders=False):
         return sb_schema_path
     else:
         if search_subfolders:
-            # Check inner directories for a possible path
-            full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-            dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-            if len(dirs) == 1:
-                # If the contents of a directory is a single directory,
-                # look through it
-                for pfx, d in dirs:
-                    p = get_latest_sb_schema(
-                        d, prefix=(*prefix, pfx), search_subfolders=True
-                    )
-                    if p is not None:
-                        return p
+            return subfolder_search(get_latest_sb_schema, path, prefix)
         return None
 
 
@@ -314,22 +297,10 @@ def get_nf_schema(string, search_subfolders=False):
 
     if os.path.exists(path):
         return path
-    else:
-        if search_subfolders:
-            # Check inner directories for a possible path
-            list_of_paths = os.listdir(string)
-            full_paths = [os.path.join(string, d) for d in list_of_paths]
-            dirs = [d for d in full_paths if os.path.isdir(d)]
-            if len(dirs) == 1:
-                # If the contents of a directory is a single directory,
-                # look through it
-                for d in dirs:
-                    p = get_nf_schema(
-                        d, search_subfolders=True
-                    )
-                    if p is not None:
-                        return p
-        return None
+
+    if search_subfolders:
+        return subfolder_search_single(get_nf_schema, string)
+    return None
 
 
 def get_docs_file(path, prefix=(), search_subfolders=False):
@@ -342,18 +313,7 @@ def get_docs_file(path, prefix=(), search_subfolders=False):
             return os.path.join(path, file)
     else:
         if search_subfolders:
-            # Check inner directories for a possible path
-            full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-            dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-            if len(dirs) == 1:
-                # If the contents of a directory is a single directory,
-                # look through it
-                for pfx, d in dirs:
-                    p = get_docs_file(
-                        d, prefix=(*prefix, pfx), search_subfolders=True
-                    )
-                    if p is not None:
-                        return p
+            return subfolder_search(get_docs_file, path, prefix)
         return None
 
 
@@ -415,19 +375,7 @@ def get_sample_sheet_schema(path, search_subfolders=False):
     else:
 
         if search_subfolders:
-            # Check inner directories for a possible path
-            list_of_paths = os.listdir(path)
-            full_paths = [os.path.join(path, d) for d in list_of_paths]
-            dirs = [d for d in full_paths if os.path.isdir(d)]
-            if len(dirs) == 1:
-                # If the contents of a directory is a single directory,
-                # look through it
-                for d in dirs:
-                    p = get_sample_sheet_schema(
-                        d, search_subfolders=True
-                    )
-                    if p is not None:
-                        return p
+            subfolder_search_single(get_sample_sheet_schema, path)
         return None
 
 
@@ -465,18 +413,7 @@ def list_config_files(path: str, prefix=(), search_subfolders=False) -> list:
         return paths
 
     if search_subfolders:
-        # Check inner directories for a possible path
-        full_paths = [(d, os.path.join(path, d)) for d in list_of_paths]
-        dirs = [(pfx, d) for pfx, d in full_paths if os.path.isdir(d)]
-        if len(dirs) == 1:
-            # If the contents of a directory is a single directory,
-            # look through it
-            for pfx, d in dirs:
-                p = list_config_files(
-                    d, prefix=(*prefix, pfx), search_subfolders=True
-                )
-                if p:
-                    return p
+        return subfolder_search(list_config_files, path, prefix) or paths
     else:
         return paths
 
