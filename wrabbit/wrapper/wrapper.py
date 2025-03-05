@@ -165,7 +165,9 @@ class SbWrapper:
         self.hints.append(hint)
 
     def add_docs(self, doc):
-        self.doc = doc
+        # Newline character protects the first line in the CWL from being too
+        #  long. If the first line is too long this sometimes causes errors.
+        self.doc = "\n" + doc
 
     def add_revision_note(self, note):
         self.revision_note = note
