@@ -188,7 +188,7 @@ class ExecMode(Enum):
 # This part contains constants related to image generation for Markdown
 
 # Find Markdown images
-REGEX_MD_IMAGE = r'((?:!|)\[([^\[\]]+)]\(([^\[\]\(\)]+\.((?:jpe?g|png)))({opt}#gh-{image_mode}-mode-only|)((?:#sbg_.*|))\))'
+REGEX_MD_IMAGE = r'((?:!|)\[([^\[\]]+)]\(([^\[\]\(\)]+\.((?:jpe?g|png)))({opt}#gh-{image_mode}-mode-only|)((?:#sbg_.*|))(?:\s[^\s]+|)\))'
 # Find <p><img> in HTML
 REGEX_HTML_IMAGE = r'(?:<p(?:[^>]+)>.*?)<img[^>]+>(?:.*?</p>)'
 # Find <h><picture> in HTML
