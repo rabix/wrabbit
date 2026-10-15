@@ -1,4 +1,5 @@
 import os
+import copy
 import logging
 import re
 import yaml
@@ -40,6 +41,8 @@ from wrabbit.parser.constants import (
     REGEX_NF_VERSION_PIL,
     REGEX_NF_VERSION_NUM,
     ImageMode,
+    GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR,
+    GENERIC_NF_OUTPUT_DIRECTORY,
 )
 
 from PIL import Image
@@ -98,6 +101,12 @@ def type_mapper(port_data: Union[str, dict], name=None):
                 symbols=enum_symbols,
             )
 
+        # Hidden directory-path params are typically local/cache directories
+        #  not real SB platform Directory inputs.
+        #  We treat them as plain strings.
+        if port_data.get('hidden') and format_ == 'directory-path':
+            format_ = ''
+
     if isinstance(type_, str):
         if type_ == 'string' and 'path' in format_:
             if format_ == 'file-path':
@@ -125,9 +134,22 @@ def type_mapper(port_data: Union[str, dict], name=None):
         return StringType()
 
     if isinstance(type_, list):
+        # JSON-schema style nullable types, e.g. ["string", "null"]. "null"
+        # isn't a real CWL type - it only signals optionality, which is
+        # already handled separately by the caller (nf_to_sb_input_mapper).
+        non_null = [m for m in type_ if m != 'null']
+
+        if len(non_null) == 1:
+            return type_mapper(non_null[0])
+
+        # Flag-like params, e.g. "help": ["boolean", "string"], are
+        # resolved to a plain boolean.
+        if 'boolean' in non_null:
+            return BooleanType()
+
         temp_type_list = CompositeType()
-        for m in type_:
-            temp_type_list.extend(type_mapper(m))
+        for m in non_null:
+            temp_type_list.append(type_mapper(m))
         return temp_type_list
 
 
@@ -522,10 +544,14 @@ def parse_config_file(file_path: str) -> dict:
         profiles[name] = settings
         include_path = re.findall(include_pattern, content)
         if include_path:
-            profiles[name]['includeConfig'] = include_path
             include_path = include_path.pop()
             additional_path = os.path.join(
                 os.path.dirname(file_path), include_path)
+            if not os.path.exists(additional_path):
+                # includeConfig points to a file that doesn't exist in this
+                # package - skip it instead of failing the whole parse.
+                continue
+            profiles[name]['includeConfig'] = include_path
             params_text = find_config_section(additional_path, 'params')
             params = dict(re.findall(key_val_pattern, params_text))
             for param, val in params.items():
@@ -791,3 +817,13 @@ def parse_output_yml(yml_file: TextIO) -> list:
         )
 
     return outputs
+
+
+def generic_output_builder(outdir_id: str = ""):
+    if outdir_id:
+        output = copy.deepcopy(GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR)
+        output['outputBinding']['glob'] = output['outputBinding'][
+            'glob'].format(outdir_input_id=outdir_id)
+        return output
+
+    return GENERIC_NF_OUTPUT_DIRECTORY

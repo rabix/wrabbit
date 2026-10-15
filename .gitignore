@@ -3,3 +3,5 @@
 /wrabbit.egg-info/
 /.idea/
 /venv/
+/tmp/
+/venv_test/

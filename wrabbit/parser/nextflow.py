@@ -18,6 +18,7 @@ from wrabbit.parser.utils import (
     get_sample_sheet_schema,
     find_publish_params,
     convert_images_to_md,
+    generic_output_builder,
 )
 
 from wrabbit.parser.constants import (
@@ -35,7 +36,7 @@ from wrabbit.parser.constants import (
     SAMPLE_SHEET_FILE_ARRAY_INPUT,
     SAMPLE_SHEET_SWITCH,
     LOAD_LISTING_REQUIREMENT,
-    NFCORE_OUTPUT_DIRECTORY_ID,
+    NFCORE_OUTPUT_DIRECTORY_ALIASES,
 )
 
 from wrabbit.specification.hints import (
@@ -78,6 +79,7 @@ class NextflowParser:
         self.search_subfolders = search_subfolders
         self.sb_wrapper = SbWrapper(label)
         self.workflow_path = workflow_path
+        self._nf_outdir_input_id: str = ""
 
         # Locate nextflow files in the package if possible
         self.init_config_files()
@@ -133,7 +135,20 @@ class NextflowParser:
                     ErrorMessages.CONFIG_FILE_INVALID
                 )
 
-        profiles_choices = sorted(list(set(profiles.keys())))
+        # Only expose profiles that are compatible with the platform
+        #   Remove profiles that don't use docker
+        profiles_choices = []
+
+        #sorted(list(set(profiles.keys())))
+
+        for profile_name, profile_contents in profiles.items():
+            # print(profile_contents)
+            profiles_choices.append(profile_name)
+            # profiles_choices = sorted([
+            #     name for name, contents in profiles.items()
+            #     if 'includeConfig' in contents
+            # ])
+        profiles_choices.sort()
 
         if profiles:
             self.sb_wrapper.safe_add_input(
@@ -197,11 +212,16 @@ class NextflowParser:
 
         # Remap publishDir to string type
         found_publish_dir = False
-        if temp := self.sb_wrapper.get_input(NFCORE_OUTPUT_DIRECTORY_ID):
-            print(f"Detected publishDir input --{temp.id_}. Remapping to "
-                  f"string type input.")
-            temp.set_property('type', 'string')
-            found_publish_dir = True
+        for publish_dir_parameter in NFCORE_OUTPUT_DIRECTORY_ALIASES:
+            if found_publish_dir:
+                break
+
+            if temp := self.sb_wrapper.get_input(publish_dir_parameter):
+                print(f"Detected publishDir input --{temp.id_}. Remapping to "
+                      f"string type input.")
+                temp.set_property('type', 'string')
+                found_publish_dir = True
+                self._nf_outdir_input_id = publish_dir_parameter
 
         if not found_publish_dir:
             # Look for publish dir in config files
@@ -252,7 +272,11 @@ class NextflowParser:
         if len(self.sb_wrapper.outputs) == 0 or \
                 (len(self.sb_wrapper.outputs) == 1 and
                  'reports' in self.sb_wrapper.outputs):
-            self.sb_wrapper.safe_add_output(GENERIC_NF_OUTPUT_DIRECTORY)
+            self.sb_wrapper.safe_add_output(
+                generic_output_builder(
+                    self._nf_outdir_input_id
+                )
+            )
 
     def generate_app_data(self):
 
