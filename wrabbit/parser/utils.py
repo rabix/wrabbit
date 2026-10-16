@@ -54,6 +54,18 @@ import base64
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+UNSUPPORTED_CONFIG_KEYS = [
+    'conda.enabled',
+    'conda.useMamba',
+    'docker.enabled',
+    'singularity.enabled',
+    'shifter.enabled',
+    'charliecloud.enabled',
+    'podman.enabled',
+    'apptainer.enabled',
+    'wave.enabled'
+]
+
 
 def nf_to_sb_input_mapper(port_id, port_data, category=None, required=False):
     """
@@ -585,18 +597,8 @@ def validate_profile(profiles: dict, name: str):
     #   Remove profiles that don't use docker
     if name in ['debug']:
         return False
-    for true_key in [
-        'conda.enabled',
-        'conda.useMamba',
-        'docker.enabled',
-        'singularity.enabled',
-        'shifter.enabled',
-        'charliecloud.enabled',
-        'podman.enabled',
-        'apptainer.enabled',
-        'wave.enabled'
-    ]:
-        if val := profiles[name].get(true_key, False):
+    for key in UNSUPPORTED_CONFIG_KEYS:
+        if val := profiles[name].get(key, False):
             if val in ['true', True]:
                 return False
     return True

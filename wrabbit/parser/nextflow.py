@@ -256,9 +256,12 @@ class NextflowParser:
                 self.sb_wrapper.safe_add_output(output)
 
         # if the only output is reports, or there are no outputs, add generic
-        if len(self.sb_wrapper.outputs) == 0 or \
-                (len(self.sb_wrapper.outputs) == 1 and
-                 'reports' in self.sb_wrapper.outputs):
+        there_are_no_outputs = len(self.sb_wrapper.outputs) == 0
+        only_output_is_reports = (
+                len(self.sb_wrapper.outputs) == 1 and
+                'reports' in self.sb_wrapper.outputs
+        )
+        if there_are_no_outputs or only_output_is_reports:
             self.sb_wrapper.safe_add_output(
                 generic_output_builder(
                     self._nf_outdir_input_id
