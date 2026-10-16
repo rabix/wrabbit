@@ -137,18 +137,7 @@ class NextflowParser:
 
         # Only expose profiles that are compatible with the platform
         #   Remove profiles that don't use docker
-        profiles_choices = []
-
-        #sorted(list(set(profiles.keys())))
-
-        for profile_name, profile_contents in profiles.items():
-            # print(profile_contents)
-            profiles_choices.append(profile_name)
-            # profiles_choices = sorted([
-            #     name for name, contents in profiles.items()
-            #     if 'includeConfig' in contents
-            # ])
-        profiles_choices.sort()
+        profiles_choices = sorted(list(set(profiles.keys())))
 
         if profiles:
             self.sb_wrapper.safe_add_input(

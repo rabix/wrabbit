@@ -523,7 +523,7 @@ def parse_manifest(file_path: str) -> dict:
     return manifest
 
 
-def parse_config_file(file_path: str) -> dict:
+def parse_config_file(file_path: str, filter_valid_profiles: bool = True) -> dict:
     profiles_text = find_config_section(file_path, 'profiles')
 
     # Extract profiles using regex
@@ -557,6 +557,11 @@ def parse_config_file(file_path: str) -> dict:
             for param, val in params.items():
                 profiles[name][f"params.{param}"] = val
 
+    if filter_valid_profiles:
+        for name in profiles.keys():
+            if not validate_profile(profiles, name):
+                profiles.pop(name)
+
     # return currently returns includeConfig and settings, which are not used
     # but could be used in the future versions of sbpack
     return profiles
@@ -583,6 +588,22 @@ def parse_sbg_image_notes(notes: str) -> dict:
             width = float(width)
         sbg_notes['width'] = width
     return sbg_notes
+
+
+def validate_profile(profiles: dict, name: str):
+    # Only expose profiles that are compatible with the platform
+    #   Remove profiles that don't use docker
+    if name in ['debug']:
+        return False
+    for true_key in [
+        'conda.enabled', 'conda.useMamba', 'docker.enabled',
+        'singularity.enabled', 'shifter.enabled', 'charliecloud.enabled',
+        'apptainer.enabled', 'wave.enabled'
+    ]:
+        if val := profiles[name].get(true_key, False):
+            if val in ['true', True]:
+                return False
+    return True
 
 
 def convert_images_to_md(path_to_docs: str, image_mode: ImageMode) -> str:
