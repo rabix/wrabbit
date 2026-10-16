@@ -86,6 +86,17 @@ GENERIC_NF_OUTPUT_DIRECTORY = {
     }
 }
 
+GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR = {
+    "id": "nf_publishdir",
+    "type": "Directory",
+    "label": "Publish Directory",
+    "doc": "This is a template output. "
+           "You can modify the glob pattern to make outputs more specific.",
+    "outputBinding": {
+        "glob": "$(inputs.{outdir_input_id})",
+    },
+}
+
 GENERIC_WDL_OUTPUT_DIRECTORY = {
     "id": "output_txt",
     "type": {
@@ -148,7 +159,7 @@ NF_SCHEMA_DEFAULT_NAME = 'nextflow_schema.json'
 SB_SCHEMA_DEFAULT_NAME = 'sb_nextflow_schema'
 README_DEFAULT_NAME = 'README.md'
 MINIMUM_SUPPORTED_NF_VERSION = "21.10.0"
-NFCORE_OUTPUT_DIRECTORY_ID = 'outdir'
+NFCORE_OUTPUT_DIRECTORY_ALIASES = ('outdir', 'out_dir')
 
 # Mappings of nextflow input fields to SB input fields
 #  nextflow_key: cwl_key mapping

@@ -1,4 +1,5 @@
 import os
+import copy
 import logging
 import re
 import yaml
@@ -39,6 +40,8 @@ from wrabbit.parser.constants import (
     REGEX_HTML_PICTURE,
     REGEX_NF_VERSION_PIL,
     REGEX_NF_VERSION_NUM,
+    GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR,
+    GENERIC_NF_OUTPUT_DIRECTORY,
     ImageMode,
 )
 
@@ -50,6 +53,18 @@ import base64
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+UNSUPPORTED_CONFIG_KEYS = [
+    'conda.enabled',
+    'conda.useMamba',
+    'docker.enabled',
+    'singularity.enabled',
+    'shifter.enabled',
+    'charliecloud.enabled',
+    'podman.enabled',
+    'apptainer.enabled',
+    'wave.enabled'
+]
 
 
 def nf_to_sb_input_mapper(port_id, port_data, category=None, required=False):
@@ -89,7 +104,15 @@ def type_mapper(port_data: Union[str, dict], name=None):
 
     if isinstance(port_data, dict):
         type_ = port_data.get('type', 'string')
+
         format_ = port_data.get('format', '')
+
+        # Hidden directory-path params are typically local/cache directories
+        #  not real SB platform Directory inputs.
+        #  We treat them as plain strings.
+        if port_data.get('hidden') and format_ == 'directory-path':
+            format_ = ''
+
         enum_symbols = port_data.get('enum', [])
 
         if enum_symbols:
@@ -104,8 +127,7 @@ def type_mapper(port_data: Union[str, dict], name=None):
                 return FileType()
             if format_ == 'directory-path':
                 return DirectoryType()
-            if format_ == 'path':
-                return FileType()
+            return FileType()
         if type_ == 'string':
             return StringType()
         if type_ == 'integer':
@@ -125,9 +147,14 @@ def type_mapper(port_data: Union[str, dict], name=None):
         return StringType()
 
     if isinstance(type_, list):
+        # If there are multiple non-null values, boolean takes president
+        non_null = [m for m in type_ if m != 'null']
+        if 'boolean' in non_null:
+            return BooleanType()
+
         temp_type_list = CompositeType()
-        for m in type_:
-            temp_type_list.extend(type_mapper(m))
+        for m in non_null:
+            temp_type_list.append(type_mapper(m))
         return temp_type_list
 
 
@@ -501,7 +528,7 @@ def parse_manifest(file_path: str) -> dict:
     return manifest
 
 
-def parse_config_file(file_path: str) -> dict:
+def parse_config_file(file_path: str, filter_valid_profiles: bool = True) -> dict:
     profiles_text = find_config_section(file_path, 'profiles')
 
     # Extract profiles using regex
@@ -522,14 +549,20 @@ def parse_config_file(file_path: str) -> dict:
         profiles[name] = settings
         include_path = re.findall(include_pattern, content)
         if include_path:
-            profiles[name]['includeConfig'] = include_path
             include_path = include_path.pop()
             additional_path = os.path.join(
                 os.path.dirname(file_path), include_path)
-            params_text = find_config_section(additional_path, 'params')
-            params = dict(re.findall(key_val_pattern, params_text))
-            for param, val in params.items():
-                profiles[name][f"params.{param}"] = val
+            if os.path.exists(additional_path):
+                profiles[name]['includeConfig'] = include_path
+                params_text = find_config_section(additional_path, 'params')
+                params = dict(re.findall(key_val_pattern, params_text))
+                for param, val in params.items():
+                    profiles[name][f"params.{param}"] = val
+
+    if filter_valid_profiles:
+        for name in list(profiles.keys()):
+            if not validate_profile(profiles, name):
+                profiles.pop(name)
 
     # return currently returns includeConfig and settings, which are not used
     # but could be used in the future versions of sbpack
@@ -557,6 +590,18 @@ def parse_sbg_image_notes(notes: str) -> dict:
             width = float(width)
         sbg_notes['width'] = width
     return sbg_notes
+
+
+def validate_profile(profiles: dict, name: str):
+    # Only expose profiles that are compatible with the platform
+    #   Remove profiles that don't use docker
+    if name in ['debug']:
+        return False
+    for key in UNSUPPORTED_CONFIG_KEYS:
+        if val := profiles[name].get(key, False):
+            if val in ['true', True]:
+                return False
+    return True
 
 
 def convert_images_to_md(path_to_docs: str, image_mode: ImageMode) -> str:
@@ -791,3 +836,13 @@ def parse_output_yml(yml_file: TextIO) -> list:
         )
 
     return outputs
+
+
+def generic_output_builder(outdir_id: str = ""):
+    if outdir_id:
+        output = copy.deepcopy(GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR)
+        output['outputBinding']['glob'] = output['outputBinding'][
+            'glob'].format(outdir_input_id=outdir_id)
+        return output
+
+    return GENERIC_NF_OUTPUT_DIRECTORY

@@ -18,6 +18,7 @@ from wrabbit.parser.utils import (
     get_sample_sheet_schema,
     find_publish_params,
     convert_images_to_md,
+    generic_output_builder,
 )
 
 from wrabbit.parser.constants import (
@@ -35,7 +36,7 @@ from wrabbit.parser.constants import (
     SAMPLE_SHEET_FILE_ARRAY_INPUT,
     SAMPLE_SHEET_SWITCH,
     LOAD_LISTING_REQUIREMENT,
-    NFCORE_OUTPUT_DIRECTORY_ID,
+    NFCORE_OUTPUT_DIRECTORY_ALIASES,
 )
 
 from wrabbit.specification.hints import (
@@ -78,6 +79,7 @@ class NextflowParser:
         self.search_subfolders = search_subfolders
         self.sb_wrapper = SbWrapper(label)
         self.workflow_path = workflow_path
+        self._nf_outdir_input_id: str = ""
 
         # Locate nextflow files in the package if possible
         self.init_config_files()
@@ -133,6 +135,8 @@ class NextflowParser:
                     ErrorMessages.CONFIG_FILE_INVALID
                 )
 
+        # Only expose profiles that are compatible with the platform
+        #   Remove profiles that don't use docker
         profiles_choices = sorted(list(set(profiles.keys())))
 
         if profiles:
@@ -197,11 +201,14 @@ class NextflowParser:
 
         # Remap publishDir to string type
         found_publish_dir = False
-        if temp := self.sb_wrapper.get_input(NFCORE_OUTPUT_DIRECTORY_ID):
-            print(f"Detected publishDir input --{temp.id_}. Remapping to "
-                  f"string type input.")
-            temp.set_property('type', 'string')
-            found_publish_dir = True
+        for publish_dir_parameter in NFCORE_OUTPUT_DIRECTORY_ALIASES:
+            if temp := self.sb_wrapper.get_input(publish_dir_parameter):
+                print(f"Detected publishDir input --{temp.id_}. Remapping to "
+                      f"string type input.")
+                temp.set_property('type', 'string')
+                self._nf_outdir_input_id = publish_dir_parameter
+                found_publish_dir = True
+                break
 
         if not found_publish_dir:
             # Look for publish dir in config files
@@ -249,10 +256,17 @@ class NextflowParser:
                 self.sb_wrapper.safe_add_output(output)
 
         # if the only output is reports, or there are no outputs, add generic
-        if len(self.sb_wrapper.outputs) == 0 or \
-                (len(self.sb_wrapper.outputs) == 1 and
-                 'reports' in self.sb_wrapper.outputs):
-            self.sb_wrapper.safe_add_output(GENERIC_NF_OUTPUT_DIRECTORY)
+        there_are_no_outputs = len(self.sb_wrapper.outputs) == 0
+        only_output_is_reports = (
+                len(self.sb_wrapper.outputs) == 1 and
+                'reports' in self.sb_wrapper.outputs
+        )
+        if there_are_no_outputs or only_output_is_reports:
+            self.sb_wrapper.safe_add_output(
+                generic_output_builder(
+                    self._nf_outdir_input_id
+                )
+            )
 
     def generate_app_data(self):
 

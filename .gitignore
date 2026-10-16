@@ -2,4 +2,5 @@
 /dist/
 /wrabbit.egg-info/
 /.idea/
-/venv/
+/venv*/
+/tmp/
