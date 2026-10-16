@@ -202,15 +202,13 @@ class NextflowParser:
         # Remap publishDir to string type
         found_publish_dir = False
         for publish_dir_parameter in NFCORE_OUTPUT_DIRECTORY_ALIASES:
-            if found_publish_dir:
-                break
-
             if temp := self.sb_wrapper.get_input(publish_dir_parameter):
                 print(f"Detected publishDir input --{temp.id_}. Remapping to "
                       f"string type input.")
                 temp.set_property('type', 'string')
-                found_publish_dir = True
                 self._nf_outdir_input_id = publish_dir_parameter
+                found_publish_dir = True
+                break
 
         if not found_publish_dir:
             # Look for publish dir in config files

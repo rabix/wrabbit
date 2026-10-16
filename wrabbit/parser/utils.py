@@ -113,10 +113,9 @@ def type_mapper(port_data: Union[str, dict], name=None):
         if type_ == 'string' and 'path' in format_:
             if format_ == 'file-path':
                 return FileType()
-            elif format_ == 'directory-path':
+            if format_ == 'directory-path':
                 return DirectoryType()
-            else:
-                return FileType()
+            return FileType()
         if type_ == 'string':
             return StringType()
         if type_ == 'integer':
