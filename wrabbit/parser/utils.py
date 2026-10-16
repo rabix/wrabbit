@@ -40,9 +40,9 @@ from wrabbit.parser.constants import (
     REGEX_HTML_PICTURE,
     REGEX_NF_VERSION_PIL,
     REGEX_NF_VERSION_NUM,
-    ImageMode,
     GENERIC_NF_OUTPUT_DIRECTORY_WITH_OUTDIR,
     GENERIC_NF_OUTPUT_DIRECTORY,
+    ImageMode,
 )
 
 from PIL import Image
@@ -92,7 +92,15 @@ def type_mapper(port_data: Union[str, dict], name=None):
 
     if isinstance(port_data, dict):
         type_ = port_data.get('type', 'string')
+
         format_ = port_data.get('format', '')
+
+        # Hidden directory-path params are typically local/cache directories
+        #  not real SB platform Directory inputs.
+        #  We treat them as plain strings.
+        if port_data.get('hidden') and format_ == 'directory-path':
+            format_ = ''
+
         enum_symbols = port_data.get('enum', [])
 
         if enum_symbols:
@@ -101,19 +109,13 @@ def type_mapper(port_data: Union[str, dict], name=None):
                 symbols=enum_symbols,
             )
 
-        # Hidden directory-path params are typically local/cache directories
-        #  not real SB platform Directory inputs.
-        #  We treat them as plain strings.
-        if port_data.get('hidden') and format_ == 'directory-path':
-            format_ = ''
-
     if isinstance(type_, str):
         if type_ == 'string' and 'path' in format_:
             if format_ == 'file-path':
                 return FileType()
-            if format_ == 'directory-path':
+            elif format_ == 'directory-path':
                 return DirectoryType()
-            if format_ == 'path':
+            else:
                 return FileType()
         if type_ == 'string':
             return StringType()
@@ -134,16 +136,8 @@ def type_mapper(port_data: Union[str, dict], name=None):
         return StringType()
 
     if isinstance(type_, list):
-        # JSON-schema style nullable types, e.g. ["string", "null"]. "null"
-        # isn't a real CWL type - it only signals optionality, which is
-        # already handled separately by the caller (nf_to_sb_input_mapper).
+        # If there are multiple non-null values, boolean takes president
         non_null = [m for m in type_ if m != 'null']
-
-        if len(non_null) == 1:
-            return type_mapper(non_null[0])
-
-        # Flag-like params, e.g. "help": ["boolean", "string"], are
-        # resolved to a plain boolean.
         if 'boolean' in non_null:
             return BooleanType()
 
@@ -547,18 +541,15 @@ def parse_config_file(file_path: str, filter_valid_profiles: bool = True) -> dic
             include_path = include_path.pop()
             additional_path = os.path.join(
                 os.path.dirname(file_path), include_path)
-            if not os.path.exists(additional_path):
-                # includeConfig points to a file that doesn't exist in this
-                # package - skip it instead of failing the whole parse.
-                continue
-            profiles[name]['includeConfig'] = include_path
-            params_text = find_config_section(additional_path, 'params')
-            params = dict(re.findall(key_val_pattern, params_text))
-            for param, val in params.items():
-                profiles[name][f"params.{param}"] = val
+            if os.path.exists(additional_path):
+                profiles[name]['includeConfig'] = include_path
+                params_text = find_config_section(additional_path, 'params')
+                params = dict(re.findall(key_val_pattern, params_text))
+                for param, val in params.items():
+                    profiles[name][f"params.{param}"] = val
 
     if filter_valid_profiles:
-        for name in profiles.keys():
+        for name in list(profiles.keys()):
             if not validate_profile(profiles, name):
                 profiles.pop(name)
 
@@ -596,9 +587,15 @@ def validate_profile(profiles: dict, name: str):
     if name in ['debug']:
         return False
     for true_key in [
-        'conda.enabled', 'conda.useMamba', 'docker.enabled',
-        'singularity.enabled', 'shifter.enabled', 'charliecloud.enabled',
-        'apptainer.enabled', 'wave.enabled'
+        'conda.enabled',
+        'conda.useMamba',
+        'docker.enabled',
+        'singularity.enabled',
+        'shifter.enabled',
+        'charliecloud.enabled',
+        'podman.enabled',
+        'apptainer.enabled',
+        'wave.enabled'
     ]:
         if val := profiles[name].get(true_key, False):
             if val in ['true', True]:
