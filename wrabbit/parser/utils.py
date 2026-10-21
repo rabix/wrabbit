@@ -558,6 +558,10 @@ def parse_config_file(file_path: str, filter_valid_profiles: bool = True) -> dic
                 params = dict(re.findall(key_val_pattern, params_text))
                 for param, val in params.items():
                     profiles[name][f"params.{param}"] = val
+            else:
+                raise MalformedConfigException(
+                    ErrorMessages.CONFIG_FILE_INVALID
+                )
 
     if filter_valid_profiles:
         for name in list(profiles.keys()):
